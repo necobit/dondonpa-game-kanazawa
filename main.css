@@ -1,0 +1,29 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: black;
+  transition: background-color 0s;
+}
+
+#display-text {
+  font-size: 20vw;
+  font-weight: bold;
+  font-family: sans-serif;
+  color: white;
+  transition: color 0s;
+}
