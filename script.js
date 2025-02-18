@@ -1,5 +1,6 @@
 const container = document.getElementById("game-container");
 const displayText = document.getElementById("display-text");
+const gameStatus = document.getElementById("game-status");
 const ws = new WebSocket("ws://localhost:8080");
 
 const FINAL_WORDS = ["ぱっ", "かっ", "ぽん", "ぱん", "ぺん", "ヌッ", "ハッ"];
@@ -24,6 +25,8 @@ const ANIMATION_STATES = {
     textColor: "black",
   },
 };
+
+let isGameActive = false;
 
 function updateDisplay(state) {
   displayText.textContent = state.text;
@@ -62,7 +65,36 @@ async function playAnimation() {
   }
 }
 
+// シリアル通信またはキーボード入力で状態を更新する関数
+function updateGameState(value) {
+  if (value === "2") {
+    isGameActive = true;
+    gameStatus.style.display = "block";
+  } else if (value === "1") {
+    isGameActive = false;
+    gameStatus.style.display = "none";
+  }
+}
+
 ws.onopen = () => {
   console.log("WebSocket接続完了");
   playAnimation();
 };
+
+// WebSocketメッセージハンドラ
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  if (data.type === "serial") {
+    updateGameState(data.value);
+  }
+};
+
+// キーボード入力ハンドラ
+document.addEventListener("keydown", (event) => {
+  if (event.key === "1" || event.key === "2") {
+    updateGameState(event.key);
+    // WebSocketサーバーにも状態を送信
+    ws.send(JSON.stringify({ type: "keyboard", value: event.key }));
+  }
+});
