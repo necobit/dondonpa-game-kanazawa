@@ -19,7 +19,8 @@ const ANIMATION_STATES = {
     textColor: "white",
   },
   PA: {
-    text: FINAL_WORDS[Math.floor(Math.random() * FINAL_WORDS.length)],
+    text: "ぱっ",
+    // text: FINAL_WORDS[Math.floor(Math.random() * FINAL_WORDS.length)],
     duration: 1000,
     backgroundColor: "white",
     textColor: "black",
@@ -84,7 +85,7 @@ ws.onopen = () => {
 // WebSocketメッセージハンドラ
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  
+
   if (data.type === "serial") {
     updateGameState(data.value);
   }
