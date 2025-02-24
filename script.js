@@ -93,7 +93,7 @@ const PARTICLE_COLORS = [
   "#F4A460", // サンディブラウン
 ];
 
-const PARTICLE_SIZES = [15, 18, 20, 25]; // パーティクルサイズを大きく
+const PARTICLE_SIZES = [8, 10, 12, 15];
 
 // タイトル画面の点滅制御
 let guideVisible = true;
@@ -213,11 +213,21 @@ async function startGameMode() {
   currentRound = 0;
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
   scoreDisplay.style.display = "block";
-  guideText.style.display = "none"; // ガイドテキストを非表示に
+  guideText.style.display = "none";
   updateScoreDisplay();
+
+  // 前回のタイトル要素があれば削除
+  const oldTitle = document.querySelector(".game-title");
+  if (oldTitle) {
+    container.removeChild(oldTitle);
+  }
+
+  // transformをリセット
+  displayTextElement.style.transform = "translateY(0)";
 
   // カウントダウン
   displayTextElement.style.fontSize = "200px";
+  displayTextElement.style.transition = "none"; // トランジションを一時的に無効化
   updateDisplay({ text: "3", backgroundColor: "yellow", textColor: "black" });
   await new Promise((resolve) => setTimeout(resolve, 1000));
   updateDisplay({ text: "2", backgroundColor: "yellow", textColor: "black" });
@@ -230,6 +240,9 @@ async function startGameMode() {
     textColor: "black",
   });
   await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // トランジションを再設定
+  displayTextElement.style.transition = "all 2s ease-out";
 
   playGameAnimation();
 }
@@ -295,7 +308,7 @@ async function endGame() {
 
   // スコアの大きな表示（中央）
   container.style.backgroundColor = "yellow";
-  displayTextElement.style.fontSize = "200px";
+  displayTextElement.style.fontSize = "150px";
   displayTextElement.style.transition = "all 2s ease-out";
   displayTextElement.style.transform = "translateY(0)";
   displayTextElement.textContent = `Score : ${score}`;
@@ -318,6 +331,7 @@ async function endGame() {
 
   // タイトルの表示
   const titleText = document.createElement("div");
+  titleText.className = "game-title"; // クラス名を追加
   titleText.style.position = "absolute";
   titleText.style.width = "100%";
   titleText.style.textAlign = "center";
@@ -354,10 +368,12 @@ function updateDisplay(state) {
   displayTextElement.textContent = state.text;
   container.style.backgroundColor = state.backgroundColor;
   displayTextElement.style.color = state.textColor;
+  displayTextElement.style.transform = "translateY(0)"; // 位置を常に中央に
 }
 
 function clearDisplay() {
   displayTextElement.textContent = "";
+  displayTextElement.style.transform = "translateY(0)"; // 位置を常に中央に
 }
 
 function updateScoreDisplay() {
