@@ -74,7 +74,13 @@ void handleSerialCommand()
 {
   if (Serial.available() > 0)
   {
-    char command = Serial.read();
+    String input = Serial.readStringUntil('\n');
+    char command = input[0];
+    
+    // デバッグ出力：受信した生データ
+    Serial.print("受信データ: ");
+    Serial.println(input);
+    
     if (command == '1')
     {
       output1Active = true;
@@ -91,8 +97,27 @@ void handleSerialCommand()
       lastSerialTime = millis();
       lastSerialCommand = '2';
     }
-    else if (command == '3') // 「3」を受信した場合の処理
+    else if (command == '3')  // 「3」を受信した場合の処理
     {
+      // カンマで分割して時間パラメータを取得
+      int commaIndex = input.indexOf(',');
+      if (commaIndex != -1) {
+        String durationStr = input.substring(commaIndex + 1);
+        int newOnTime = durationStr.toInt();  // 受信した時間を一時変数に格納
+        
+        // デバッグ出力：パース結果
+        Serial.print("コマンド: ");
+        Serial.print(command);
+        Serial.print(" 時間文字列: ");
+        Serial.print(durationStr);
+        Serial.print(" 変換後の値: ");
+        Serial.println(newOnTime);
+        
+        onTime3 = newOnTime;  // 値を設定
+      } else {
+        Serial.println("時間パラメータが見つかりません");
+      }
+      
       output3Active = true;
       lastOutput3Time = millis();
       digitalWrite(OUTPUT_PIN_3, HIGH);

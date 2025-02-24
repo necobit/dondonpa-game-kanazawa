@@ -59,11 +59,13 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const data = JSON.parse(message);
     if (data.type === "don" && serialPort) {
-      serialPort.write("3", (err) => {
+      // 3と時間をカンマ区切りで送信
+      const command = `3,${data.duration}\n`;
+      serialPort.write(command, (err) => {
         if (err) {
           console.error("シリアル通信エラー:", err);
         } else {
-          console.log("シリアルデータ送信: 3");
+          console.log(`シリアルデータ送信: ${command.trim()}`);
         }
       });
     } else if (data.type === "pa" && serialPort) {

@@ -58,12 +58,14 @@ const ANIMATION_STATES = {
     duration: 500,
     backgroundColor: "yellow",
     textColor: "black",
+    highDuration: 60, // 初期のHIGH時間（msec）
   },
   DON2: {
     text: "どん",
     duration: 500,
     backgroundColor: "yellow",
     textColor: "black",
+    highDuration: 60, // 初期のHIGH時間（msec）
   },
   PA: {
     text: "ぱっ",
@@ -260,15 +262,48 @@ async function playGameAnimation() {
 
     // First どん (500msec)
     timingWindow = false;
+    const baseSpeed = 500; // 基準速度
+    const currentSpeed1 = gameTimings.don1;
+    const speedRatio1 = baseSpeed / currentSpeed1;
+    const highDuration1 = Math.max(
+      20,
+      Math.floor(ANIMATION_STATES.DON1.highDuration / speedRatio1)
+    );
+
+    // デバッグ出力
+    console.log(`
+      1回目のどん:
+      基準速度: ${baseSpeed}msec
+      現在の速度: ${currentSpeed1}msec
+      スピード比率: ${speedRatio1}
+      計算されたHIGH時間: ${highDuration1}msec
+    `);
+
     updateDisplay(ANIMATION_STATES.DON1);
-    ws.send(JSON.stringify({ type: "don" }));
+    ws.send(JSON.stringify({ type: "don", duration: highDuration1 }));
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
     clearDisplay();
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
 
     // Second どん (500msec)
+    const currentSpeed2 = gameTimings.don2;
+    const speedRatio2 = baseSpeed / currentSpeed2;
+    const highDuration2 = Math.max(
+      20,
+      Math.floor(ANIMATION_STATES.DON2.highDuration / speedRatio2)
+    );
+
+    // デバッグ出力
+    console.log(`
+      2回目のどん:
+      基準速度: ${baseSpeed}msec
+      現在の速度: ${currentSpeed2}msec
+      スピード比率: ${speedRatio2}
+      計算されたHIGH時間: ${highDuration2}msec
+    `);
+
     updateDisplay(ANIMATION_STATES.DON2);
-    ws.send(JSON.stringify({ type: "don" }));
+    ws.send(JSON.stringify({ type: "don", duration: highDuration2 }));
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
     clearDisplay();
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
