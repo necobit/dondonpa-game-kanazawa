@@ -21,6 +21,8 @@ bool output1Active = false;
 bool output2Active = false;
 bool ledsActive = false;
 
+int onTime = 100; // 遅延時間
+
 // チャタリング対策用
 const unsigned long DEBOUNCE_DELAY = 50;
 unsigned long lastDebounceTime = 0;
@@ -55,7 +57,7 @@ void setup()
   Serial.begin(115200);
 
   // FastLEDの初期化
-  FastLED.addLeds<WS2812B, 8, GRB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, 5, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(255);
 
   // 画面の初期設定
@@ -108,18 +110,19 @@ void handleButton()
       {
         // ボタンが押された時の処理
         digitalWrite(OUTPUT_PIN_1, HIGH);
-        digitalWrite(OUTPUT_PIN_2, HIGH);
-        output1Active = true;
-        output2Active = true;
-        lastOutput1Time = millis();
-        lastOutput2Time = millis();
-
         // LEDを白く点灯
         for (int i = 0; i < NUM_LEDS; i++)
         {
           leds[i] = CRGB::White;
         }
         FastLED.show();
+
+        digitalWrite(OUTPUT_PIN_2, HIGH);
+        output1Active = true;
+        output2Active = true;
+        lastOutput1Time = millis();
+        lastOutput2Time = millis();
+
         ledsActive = true;
         lastLedTime = millis();
 
@@ -143,14 +146,14 @@ void handleButton()
 void updateOutputs()
 {
   // OUTPUT_PIN_1の制御
-  if (output1Active && (millis() - lastOutput1Time >= 50))
+  if (output1Active && (millis() - lastOutput1Time >= onTime))
   {
     digitalWrite(OUTPUT_PIN_1, LOW);
     output1Active = false;
   }
 
   // OUTPUT_PIN_2の制御
-  if (output2Active && (millis() - lastOutput2Time >= 50))
+  if (output2Active && (millis() - lastOutput2Time >= onTime))
   {
     digitalWrite(OUTPUT_PIN_2, LOW);
     output2Active = false;

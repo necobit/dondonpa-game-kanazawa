@@ -273,7 +273,7 @@ async function playGameAnimation() {
     timingWindow = true;
     container.style.backgroundColor = "white"; // 背景色を白に設定
     updateDisplay(ANIMATION_STATES.PA);
-    ws.send(JSON.stringify({ type: "pa" }));
+    // ws.send(JSON.stringify({ type: "pa" }));  //「ぱっ」はユーザーが叩くためコメントアウト
 
     await new Promise((resolve) => setTimeout(resolve, 100));
     timingWindow = false;
