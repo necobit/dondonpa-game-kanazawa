@@ -32,7 +32,7 @@ const initSerialPort = async () => {
     serialPort.on("data", (data) => {
       const receivedData = data.toString().trim();
       console.log("シリアルポートから受信:", receivedData);
-      
+
       // 受信したデータをWebSocketクライアントに送信
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -59,11 +59,11 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const data = JSON.parse(message);
     if (data.type === "don" && serialPort) {
-      serialPort.write("1", (err) => {
+      serialPort.write("3", (err) => {
         if (err) {
           console.error("シリアル通信エラー:", err);
         } else {
-          console.log("シリアルデータ送信: 1");
+          console.log("シリアルデータ送信: 3");
         }
       });
     } else if (data.type === "pa" && serialPort) {

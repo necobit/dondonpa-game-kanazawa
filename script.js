@@ -68,7 +68,7 @@ const ANIMATION_STATES = {
   PA: {
     text: "ぱっ",
     duration: 1000,
-    backgroundColor: "white",
+    backgroundColor: "yellow",
     textColor: "black",
   },
 };
@@ -91,9 +91,14 @@ const PARTICLE_COLORS = [
   "#FFD700", // ゴールド
   "#DAA520", // ゴールデンロッド
   "#F4A460", // サンディブラウン
+  "#1E90FF", // ドジャーブルー
+  "#4169E1", // ロイヤルブルー
+  "#00BFFF", // ディープスカイブルー
+  "#87CEEB", // スカイブルー
+  "#B0E0E6", // パウダーブルー
 ];
 
-const PARTICLE_SIZES = [8, 10, 12, 15];
+const PARTICLE_SIZES = [15, 20, 25, 30];
 
 // タイトル画面の点滅制御
 let guideVisible = true;
@@ -271,7 +276,6 @@ async function playGameAnimation() {
     // ぱっ (1000msec)
     startTime = Date.now();
     timingWindow = true;
-    container.style.backgroundColor = "white"; // 背景色を白に設定
     updateDisplay(ANIMATION_STATES.PA);
     // ws.send(JSON.stringify({ type: "pa" }));  //「ぱっ」はユーザーが叩くためコメントアウト
 
@@ -282,7 +286,6 @@ async function playGameAnimation() {
       setTimeout(resolve, gameTimings.pa / 2 - 100)
     );
     clearDisplay();
-    container.style.backgroundColor = "yellow"; // 背景色を黄色に戻す
     await new Promise((resolve) => setTimeout(resolve, gameTimings.pa / 2));
 
     currentRound++;
@@ -432,5 +435,5 @@ function flashRed() {
   container.style.backgroundColor = "red";
   setTimeout(() => {
     container.style.backgroundColor = "yellow";
-  }, 50);
+  }, 150);
 }

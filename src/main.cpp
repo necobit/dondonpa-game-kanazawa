@@ -16,12 +16,15 @@ CRGB leds[NUM_LEDS];
 unsigned long lastButtonPress = 0;
 unsigned long lastOutput1Time = 0;
 unsigned long lastOutput2Time = 0;
+unsigned long lastOutput3Time = 0; // OUTPUT_PIN_3用のタイマー変数
 unsigned long lastLedTime = 0;
 bool output1Active = false;
 bool output2Active = false;
+bool output3Active = false; // OUTPUT_PIN_3用のフラグ
 bool ledsActive = false;
 
-int onTime = 100; // 遅延時間
+int onTime = 60;  // オン時間
+int onTime3 = 60; // OUT3用オン時間
 
 // チャタリング対策用
 const unsigned long DEBOUNCE_DELAY = 50;
@@ -88,6 +91,14 @@ void handleSerialCommand()
       lastSerialTime = millis();
       lastSerialCommand = '2';
     }
+    else if (command == '3') // 「3」を受信した場合の処理
+    {
+      output3Active = true;
+      lastOutput3Time = millis();
+      digitalWrite(OUTPUT_PIN_3, HIGH);
+      lastSerialTime = millis();
+      lastSerialCommand = '3';
+    }
   }
 }
 
@@ -110,19 +121,18 @@ void handleButton()
       {
         // ボタンが押された時の処理
         digitalWrite(OUTPUT_PIN_1, HIGH);
-        // LEDを白く点灯
-        for (int i = 0; i < NUM_LEDS; i++)
-        {
-          leds[i] = CRGB::White;
-        }
-        FastLED.show();
-
         digitalWrite(OUTPUT_PIN_2, HIGH);
         output1Active = true;
         output2Active = true;
         lastOutput1Time = millis();
         lastOutput2Time = millis();
 
+        // LEDを白く点灯
+        for (int i = 0; i < NUM_LEDS; i++)
+        {
+          leds[i] = CRGB::White;
+        }
+        FastLED.show();
         ledsActive = true;
         lastLedTime = millis();
 
@@ -157,6 +167,13 @@ void updateOutputs()
   {
     digitalWrite(OUTPUT_PIN_2, LOW);
     output2Active = false;
+  }
+
+  // OUTPUT_PIN_3の制御
+  if (output3Active && (millis() - lastOutput3Time >= onTime3))
+  {
+    digitalWrite(OUTPUT_PIN_3, LOW);
+    output3Active = false;
   }
 
   // LEDの制御
