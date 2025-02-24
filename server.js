@@ -28,6 +28,19 @@ const initSerialPort = async () => {
       serialPort = null;
     });
 
+    // シリアルポートからのデータ受信処理を追加
+    serialPort.on("data", (data) => {
+      const receivedData = data.toString().trim();
+      console.log("シリアルポートから受信:", receivedData);
+      
+      // 受信したデータをWebSocketクライアントに送信
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: "serial", value: receivedData }));
+        }
+      });
+    });
+
     console.log("シリアルポートに接続しました");
   } catch (error) {
     console.log(

@@ -3,24 +3,33 @@ const displayText = document.getElementById("display-text");
 const gameStatus = document.getElementById("game-status");
 const ws = new WebSocket("ws://localhost:8080");
 
+// タイトル用のテキスト要素を追加
+const guideText = document.createElement("div");
+guideText.style.position = "absolute";
+guideText.style.width = "100%";
+guideText.style.textAlign = "center";
+guideText.style.top = "60%";
+guideText.style.fontSize = "24px";
+guideText.style.color = "white";
+container.appendChild(guideText);
+
 const FINAL_WORDS = ["ぱっ", "かっ", "ぽん", "ぱん", "ぺん", "ヌッ", "ハッ"];
 
 const ANIMATION_STATES = {
   DON1: {
     text: "どん",
     duration: 500,
-    backgroundColor: "black",
-    textColor: "white",
+    backgroundColor: "yellow",
+    textColor: "black",
   },
   DON2: {
     text: "どん",
     duration: 500,
-    backgroundColor: "black",
-    textColor: "white",
+    backgroundColor: "yellow",
+    textColor: "black",
   },
   PA: {
     text: "ぱっ",
-    // text: FINAL_WORDS[Math.floor(Math.random() * FINAL_WORDS.length)],
     duration: 1000,
     backgroundColor: "white",
     textColor: "black",
@@ -35,38 +44,73 @@ let timingWindow = false;
 let gameTimings = {
   don1: 500,
   don2: 500,
-  pa: 1000
+  pa: 1000,
 };
+
+// パーティクルの色とサイズのバリエーション
+const PARTICLE_COLORS = [
+  "#FFD700", // ゴールド
+  "#FFFACD", // レモンシフォン
+  "#FFF8DC", // コーンシルク
+  "#FFFFE0", // ライトイエロー
+  "#FFFF00", // イエロー
+];
+
+const PARTICLE_SIZES = [3, 4, 5, 6];
+
+// タイトル画面の点滅制御
+let guideVisible = true;
+function blinkGuide() {
+  if (!isGameMode) {
+    guideText.style.opacity = guideVisible ? "1" : "0";
+    guideVisible = !guideVisible;
+  }
+}
+setInterval(blinkGuide, 800);
+
+// タイトル画面の表示
+function showTitleScreen() {
+  displayText.textContent = "どんどんぱっゲーム";
+  displayText.style.fontSize = "48px";
+  guideText.textContent = "スペースキーを押してください";
+  container.style.backgroundColor = "yellow";
+  displayText.style.color = "black";
+}
 
 // パーティクルシステムの設定
 const particles = [];
-const particleContainer = document.createElement('div');
-particleContainer.style.position = 'absolute';
-particleContainer.style.width = '100%';
-particleContainer.style.height = '100%';
-particleContainer.style.pointerEvents = 'none';
+const particleContainer = document.createElement("div");
+particleContainer.style.position = "absolute";
+particleContainer.style.width = "100%";
+particleContainer.style.height = "100%";
+particleContainer.style.pointerEvents = "none";
 container.appendChild(particleContainer);
 
 function createParticle() {
-  const particle = document.createElement('div');
-  particle.style.position = 'absolute';
-  particle.style.width = '5px';
-  particle.style.height = '5px';
-  particle.style.backgroundColor = 'yellow';
-  particle.style.borderRadius = '50%';
-  
+  const particle = document.createElement("div");
+  particle.style.position = "absolute";
+  const size = PARTICLE_SIZES[Math.floor(Math.random() * PARTICLE_SIZES.length)];
+  particle.style.width = `${size}px`;
+  particle.style.height = `${size}px`;
+  particle.style.backgroundColor = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+  particle.style.borderRadius = "50%";
+  particle.style.filter = "blur(0.5px)";
+  particle.style.boxShadow = "0 0 2px #FFD700";
+
   const x = Math.random() * window.innerWidth;
-  const y = Math.random() * window.innerHeight;
-  const angle = Math.random() * Math.PI * 2;
-  const speed = 2 + Math.random() * 2;
-  
+  const y = window.innerHeight / 2;  // 中央から開始
+  const angle = (Math.random() * Math.PI) - (Math.PI / 2); // 上向きを基準に広がる
+  const speed = 1 + Math.random() * 3;
+
   return {
     element: particle,
     x,
     y,
     vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
-    life: 1
+    vy: Math.sin(angle) * speed - 2, // 上向きの初速を追加
+    life: 1,
+    rotation: Math.random() * 360,
+    rotationSpeed: (Math.random() - 0.5) * 10,
   };
 }
 
@@ -75,8 +119,11 @@ function updateParticles() {
     const p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
+    p.vy += 0.1; // 重力効果
     p.life -= 0.02;
-    p.element.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    p.rotation += p.rotationSpeed;
+    
+    p.element.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.rotation}deg)`;
     p.element.style.opacity = p.life;
     
     if (p.life <= 0) {
@@ -88,74 +135,106 @@ function updateParticles() {
 }
 
 function showParticles() {
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 20; i++) {
     const p = createParticle();
     particleContainer.appendChild(p.element);
     particles.push(p);
   }
 }
 
-function flashRed() {
-  container.style.backgroundColor = 'red';
-  setTimeout(() => {
-    container.style.backgroundColor = 'black';
-  }, 50);
-}
-
 async function startGameMode() {
   if (isGameMode) return;
-  
+
   isGameMode = true;
   score = 0;
   currentRound = 0;
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
-  
+
   // カウントダウン
-  updateDisplay({ text: "3", backgroundColor: "black", textColor: "white" });
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  updateDisplay({ text: "2", backgroundColor: "black", textColor: "white" });
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  updateDisplay({ text: "1", backgroundColor: "black", textColor: "white" });
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  updateDisplay({ text: "Start!", backgroundColor: "black", textColor: "white" });
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
+  updateDisplay({
+    text: "3",
+    backgroundColor: "yellow",
+    textColor: "black",
+    fontSize: "96px",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  updateDisplay({
+    text: "2",
+    backgroundColor: "yellow",
+    textColor: "black",
+    fontSize: "96px",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  updateDisplay({
+    text: "1",
+    backgroundColor: "yellow",
+    textColor: "black",
+    fontSize: "96px",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  updateDisplay({
+    text: "Start!",
+    backgroundColor: "yellow",
+    textColor: "black",
+    fontSize: "96px",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
   playGameAnimation();
 }
 
 async function playGameAnimation() {
   while (isGameMode) {
-    // First どん
+    let startTime = Date.now();
+    let cycleStart = Date.now();
+
+    // First どん (500msec)
+    timingWindow = false;
     updateDisplay(ANIMATION_STATES.DON1);
     ws.send(JSON.stringify({ type: "don" }));
-    await new Promise(resolve => setTimeout(resolve, gameTimings.don1));
+    await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
     clearDisplay();
-    
-    // Second どん
+    await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
+    console.log("最初のどんの時間:", Date.now() - startTime);
+
+    // Second どん (500msec)
+    startTime = Date.now();
     updateDisplay(ANIMATION_STATES.DON2);
     ws.send(JSON.stringify({ type: "don" }));
-    await new Promise(resolve => setTimeout(resolve, gameTimings.don2));
+    await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
     clearDisplay();
-    
-    // ぱっ
-    timingWindow = false;
-    setTimeout(() => {
-      timingWindow = true;
-    }, gameTimings.pa - 50);
-    
+    await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
+    console.log("2番目のどんの時間:", Date.now() - startTime);
+
+    // ぱっ (1000msec)
+    startTime = Date.now();
+    console.log("ぱっまでの間隔:", Date.now() - cycleStart);
+
+    timingWindow = true;
     updateDisplay(ANIMATION_STATES.PA);
     ws.send(JSON.stringify({ type: "pa" }));
-    await new Promise(resolve => setTimeout(resolve, gameTimings.pa));
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
     timingWindow = false;
-    
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, gameTimings.pa / 2 - 100)
+    );
+    clearDisplay();
+    await new Promise((resolve) => setTimeout(resolve, gameTimings.pa / 2));
+    console.log("ぱっの時間:", Date.now() - startTime);
+    console.log("1サイクルの合計時間:", Date.now() - cycleStart);
+    console.log("---");
+
     currentRound++;
-    if (currentRound % 4 === 0) {
-      // 速度を10%上げる
-      gameTimings.don1 *= 0.9;
-      gameTimings.don2 *= 0.9;
-      gameTimings.pa *= 0.9;
+    if (currentRound % 1 === 0) {
+      // 速度を20%上げる
+      gameTimings.don1 *= 0.95;
+      gameTimings.don2 *= 0.95;
+      gameTimings.pa *= 0.95;
+      console.log("新しい間隔:", gameTimings);
     }
-    
+
     // ゲーム終了判定
     if (gameTimings.don1 <= 100) {
       await endGame();
@@ -166,17 +245,17 @@ async function playGameAnimation() {
 
 async function endGame() {
   isGameMode = false;
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
   // 結果表示
-  container.style.backgroundColor = 'yellow';
+  container.style.backgroundColor = "yellow";
   displayText.textContent = `Score: ${score}`;
-  displayText.style.fontSize = '48px';
-  
+  displayText.style.fontSize = "48px";
+
   // シリアルポートに1と2を交互に送信
   for (let i = 0; i < 10; i++) {
-    ws.send(JSON.stringify({ type: "serial", value: i % 2 + 1 }));
-    await new Promise(resolve => setTimeout(resolve, 200));
+    ws.send(JSON.stringify({ type: "serial", value: (i % 2) + 1 }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 }
 
@@ -211,7 +290,7 @@ function updateGameState(value) {
 
 ws.onopen = () => {
   console.log("WebSocket接続完了");
-  // playAnimation();
+  showTitleScreen();
 };
 
 // WebSocketメッセージハンドラ
@@ -219,7 +298,10 @@ ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
   if (data.type === "serial") {
-    updateGameState(data.value);
+    console.log("シリアルポートから受信:", data.value);
+    if (data.value === "1") {
+      updateGameState("1");
+    }
   }
 };
 
@@ -235,3 +317,10 @@ document.addEventListener("keydown", (event) => {
 
 // パーティクルアニメーションの開始
 updateParticles();
+
+function flashRed() {
+  container.style.backgroundColor = "red";
+  setTimeout(() => {
+    container.style.backgroundColor = "black";
+  }, 50);
+}
