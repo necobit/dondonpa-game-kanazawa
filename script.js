@@ -4,18 +4,27 @@ const gameStatus = document.getElementById("game-status");
 const ws = new WebSocket("ws://localhost:8080");
 
 // タイトル用のテキスト要素を追加
+const titleTextElement = document.createElement("div");
+titleTextElement.style.position = "absolute";
+titleTextElement.style.width = "100%";
+titleTextElement.style.textAlign = "center";
+titleTextElement.style.top = "15%";
+container.appendChild(titleTextElement);
+
+// ゲーム中どんどんぱっのテキスト要素を追加
 const displayTextElement = document.createElement("div");
 displayTextElement.style.position = "absolute";
 displayTextElement.style.width = "100%";
 displayTextElement.style.textAlign = "center";
-displayTextElement.style.top = "35%";
+displayTextElement.style.top = "45%";
 container.appendChild(displayTextElement);
 
+// ガイド用のテキスト要素を追加
 const guideText = document.createElement("div");
 guideText.style.position = "absolute";
 guideText.style.width = "100%";
 guideText.style.textAlign = "center";
-guideText.style.top = "55%";
+guideText.style.top = "45%";
 guideText.style.fontSize = "32px";
 guideText.style.color = "black";
 container.appendChild(guideText);
@@ -49,8 +58,6 @@ particleContainer.style.width = "100%";
 particleContainer.style.height = "100%";
 particleContainer.style.pointerEvents = "none";
 container.appendChild(particleContainer);
-
-const FINAL_WORDS = ["ぱっ", "かっ", "ぽん", "ぱん", "ぺん", "ヌッ", "ハッ"];
 
 const ANIMATION_STATES = {
   DON1: {
@@ -114,10 +121,42 @@ function blinkGuide() {
 
 // タイトル画面の表示
 function showTitleScreen() {
-  displayTextElement.textContent = "どんどんぱっ";
-  displayTextElement.style.fontSize = "120px";
-  displayTextElement.style.fontWeight = "bold";
-  guideText.textContent = "スペースキーを押してください";
+  // タイトルの表示
+  titleTextElement.textContent = "どんどんぱっ";
+  titleTextElement.style.fontSize = "160px"; // 修正: displayTextElement -> titleTextElement
+  titleTextElement.style.fontWeight = "bold"; // 修正: displayTextElement -> titleTextElement
+  titleTextElement.style.marginBottom = "20px"; // 修正: displayTextElement -> titleTextElement
+
+  // ゲーム説明の追加
+  const instructionBox = document.createElement("div");
+  instructionBox.id = "instruction-box";
+  instructionBox.style.position = "absolute";
+  instructionBox.style.width = "80%";
+  instructionBox.style.maxWidth = "600px";
+  instructionBox.style.top = "50%";
+  instructionBox.style.left = "50%";
+  instructionBox.style.transform = "translate(-50%, 0%)";
+  instructionBox.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+  instructionBox.style.borderRadius = "15px";
+  instructionBox.style.padding = "20px";
+  instructionBox.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+  instructionBox.style.textAlign = "center";
+  instructionBox.style.fontSize = "24px";
+  instructionBox.style.color = "black";
+  instructionBox.style.lineHeight = "1.5";
+  instructionBox.innerHTML = `
+    <h2 style="margin-bottom: 15px; font-size: 32px;">あそびかた</h2>
+    <p>「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold; color: #FF5500;">ぱっ</span>」のリズムにあわせて</p>
+    <p>「<span style="font-weight: bold; color: #FF5500; font-size: 32px;">ぱっ</span>」のときに「1」キーを押そう！</p>
+    <p style="margin-top: 15px;">タイミングがあえばポイントゲット！</p>
+    <p>だんだん速くなるよ！どこまでできるかな？</p>
+  `;
+  container.appendChild(instructionBox);
+
+  // スタート案内の表示
+  guideText.textContent = "スペースキーを押してスタート！";
+  guideText.style.top = "80%";
+
   container.style.backgroundColor = "yellow";
   displayTextElement.style.color = "black";
   scoreDisplay.style.display = "none";
@@ -229,20 +268,56 @@ async function startGameMode() {
     container.removeChild(oldTitle);
   }
 
+  // 説明ボックスを削除
+  const instructionBox = document.getElementById("instruction-box");
+  if (instructionBox) {
+    container.removeChild(instructionBox);
+  }
+
+  // フェードアウトエフェクト
+  const fadeOverlay = document.createElement("div");
+  fadeOverlay.style.position = "absolute";
+  fadeOverlay.style.width = "100%";
+  fadeOverlay.style.height = "100%";
+  fadeOverlay.style.backgroundColor = "black";
+  fadeOverlay.style.opacity = "0";
+  fadeOverlay.style.transition = "opacity 0.5s ease";
+  fadeOverlay.style.zIndex = "999";
+  container.appendChild(fadeOverlay);
+
+  // フェードアウト
+  fadeOverlay.style.opacity = "1";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   // transformをリセット
   displayTextElement.style.transform = "translateY(0)";
 
-  // カウントダウン
+  // カウントダウン準備
   displayTextElement.style.fontSize = "200px";
   displayTextElement.style.transition = "none"; // トランジションを一時的に無効化
-  updateDisplay({ text: "3", backgroundColor: "yellow", textColor: "black" });
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  updateDisplay({ text: "2", backgroundColor: "yellow", textColor: "black" });
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  updateDisplay({ text: "1", backgroundColor: "yellow", textColor: "black" });
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // フェードイン
+  fadeOverlay.style.opacity = "0";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  container.removeChild(fadeOverlay);
+
+  // 準備メッセージ
   updateDisplay({
-    text: "Start!",
+    text: "準備はいい？",
+    backgroundColor: "yellow",
+    textColor: "black",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  // カウントダウン
+  updateDisplay({ text: "3", backgroundColor: "yellow", textColor: "black" });
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  updateDisplay({ text: "2", backgroundColor: "yellow", textColor: "black" });
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  updateDisplay({ text: "1", backgroundColor: "yellow", textColor: "black" });
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  updateDisplay({
+    text: "スタート！",
     backgroundColor: "yellow",
     textColor: "black",
   });
@@ -310,7 +385,7 @@ async function playGameAnimation() {
       setTimeout(resolve, gameTimings.don2 / 2 - 100)
     );
 
-    timingWindow = true; // スコア加算のタイミングウィンドウを有効化
+    timingWindow = true; // ぱっの100msec手前からスコア加算のタイミングウィンドウを有効化
     startTime = Date.now();
     await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -346,30 +421,97 @@ async function playGameAnimation() {
 
 async function endGame() {
   isGameMode = false;
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // フェードアウトエフェクト
+  const fadeOverlay = document.createElement("div");
+  fadeOverlay.style.position = "absolute";
+  fadeOverlay.style.width = "100%";
+  fadeOverlay.style.height = "100%";
+  fadeOverlay.style.backgroundColor = "black";
+  fadeOverlay.style.opacity = "0";
+  fadeOverlay.style.transition = "opacity 0.5s ease";
+  fadeOverlay.style.zIndex = "999";
+  container.appendChild(fadeOverlay);
+
+  // フェードアウト
+  fadeOverlay.style.opacity = "1";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // 終了メッセージ
+  container.style.backgroundColor = "yellow";
+  displayTextElement.style.fontSize = "100px";
+  displayTextElement.style.transition = "all 1s ease-out";
+  displayTextElement.style.transform = "translateY(0)";
+  displayTextElement.textContent = "おわり！";
+  displayTextElement.style.color = "black";
+
+  // フェードイン
+  fadeOverlay.style.opacity = "0";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  container.removeChild(fadeOverlay);
+
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  // 結果発表のアニメーション
+  displayTextElement.style.fontSize = "80px";
+  displayTextElement.textContent = "けっか発表...";
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 
   // スコアの大きな表示（中央）
-  container.style.backgroundColor = "yellow";
+  showParticles(); // パーティクルエフェクト
   displayTextElement.style.fontSize = "150px";
-  displayTextElement.style.transition = "all 2s ease-out";
+  displayTextElement.style.transition = "all 1s ease-out";
   displayTextElement.style.transform = "translateY(0)";
-  displayTextElement.textContent = `Score : ${score}`;
+  displayTextElement.textContent = `${score}点！`;
   displayTextElement.style.color = "black";
   guideText.style.display = "none";
   scoreDisplay.style.display = "none";
 
-  // 2秒待機
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // 評価メッセージ
+  const resultMessage = document.createElement("div");
+  resultMessage.style.position = "absolute";
+  resultMessage.style.width = "100%";
+  resultMessage.style.textAlign = "center";
+  resultMessage.style.top = "60%";
+  resultMessage.style.fontSize = "40px";
+  resultMessage.style.fontWeight = "bold";
+  resultMessage.style.color = "black";
+  resultMessage.style.opacity = "0";
+  resultMessage.style.transition = "opacity 1s ease-out";
+
+  // スコアに応じたメッセージ
+  if (score >= 1000) {
+    resultMessage.textContent = "すごい！リズムの天才だ！";
+  } else if (score >= 500) {
+    resultMessage.textContent = "上手だね！";
+  } else if (score >= 200) {
+    resultMessage.textContent = "なかなかいいね！";
+  } else {
+    resultMessage.textContent = "また挑戦してみよう！";
+  }
+
+  container.appendChild(resultMessage);
+
+  // 評価メッセージをフェードイン
+  setTimeout(() => {
+    resultMessage.style.opacity = "1";
+  }, 50);
+
+  // 3秒待機
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  // フェードアウト
+  fadeOverlay.style.opacity = "0";
+  container.appendChild(fadeOverlay);
+  fadeOverlay.style.opacity = "1";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // 結果表示を削除
+  container.removeChild(resultMessage);
 
   // スコアを小さくして下に移動
   displayTextElement.style.fontSize = "64px";
   displayTextElement.style.transform = "translateY(150px)"; // 移動位置をさらに下に
-
-  // 2秒待機（移動中）
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // 1秒待機（移動後）
-  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   // タイトルの表示
   const titleText = document.createElement("div");
@@ -386,6 +528,11 @@ async function endGame() {
   titleText.style.transition = "opacity 1s ease-out";
   container.insertBefore(titleText, displayTextElement);
 
+  // フェードイン
+  fadeOverlay.style.opacity = "0";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  container.removeChild(fadeOverlay);
+
   // タイトルをフェードイン
   setTimeout(() => {
     titleText.style.opacity = "1";
@@ -394,10 +541,13 @@ async function endGame() {
   // ガイドテキストの設定と点滅開始
   guideText.style.fontSize = "32px";
   guideText.style.top = "65%";
-  guideText.textContent = "スペースキーを押してください";
+  guideText.textContent = "スペースキーを押してもう一回！";
   guideText.style.display = "block";
   guideText.style.color = "black";
   blinkGuide();
+
+  // 説明を再表示
+  showTitleScreen();
 
   // シリアルポートに1と2を交互に送信
   for (let i = 0; i < 10; i++) {
