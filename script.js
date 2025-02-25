@@ -306,11 +306,15 @@ async function playGameAnimation() {
     ws.send(JSON.stringify({ type: "don", duration: highDuration2 }));
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
     clearDisplay();
-    await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
+    await new Promise((resolve) =>
+      setTimeout(resolve, gameTimings.don2 / 2 - 100)
+    );
+
+    timingWindow = true; // スコア加算のタイミングウィンドウを有効化
+    startTime = Date.now();
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // ぱっ (1000msec)
-    startTime = Date.now();
-    timingWindow = true;
     updateDisplay(ANIMATION_STATES.PA);
     // ws.send(JSON.stringify({ type: "pa" }));  //「ぱっ」はユーザーが叩くためコメントアウト
 
