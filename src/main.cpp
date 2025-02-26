@@ -2,8 +2,8 @@
 #include <FastLED.h>
 
 // ピン定義
-const int SWITCH_PIN = 6;
-const int LED_PIN = 7;
+const int SWITCH1_PIN = 6;
+const int SWITCH2_PIN = 7;
 const int OUTPUT_PIN_1 = 38;
 const int OUTPUT_PIN_2 = 39;
 const int OUTPUT_PIN_3 = 8;
@@ -33,6 +33,12 @@ int lastButtonState = HIGH;
 int buttonState;
 bool buttonEnabled = true;
 
+// SWITCH2_PIN用のチャタリング対策変数
+unsigned long lastDebounceTime2 = 0;
+int lastButtonState2 = HIGH;
+int buttonState2;
+bool buttonEnabled2 = true;
+
 // 画面表示用の変数
 const int SCREEN_WIDTH = 128;
 const int SCREEN_HEIGHT = 128;
@@ -50,8 +56,8 @@ void setup()
   Serial.begin(115200);
 
   // ピンモードの設定
-  pinMode(SWITCH_PIN, INPUT_PULLUP);
-  pinMode(LED_PIN, INPUT_PULLUP);
+  pinMode(SWITCH1_PIN, INPUT_PULLUP);
+  pinMode(SWITCH2_PIN, INPUT_PULLUP);
   pinMode(OUTPUT_PIN_1, OUTPUT);
   pinMode(OUTPUT_PIN_2, OUTPUT);
   pinMode(OUTPUT_PIN_3, OUTPUT);
@@ -76,11 +82,11 @@ void handleSerialCommand()
   {
     String input = Serial.readStringUntil('\n');
     char command = input[0];
-    
+
     // デバッグ出力：受信した生データ
     Serial.print("受信データ: ");
     Serial.println(input);
-    
+
     if (command == '1')
     {
       output1Active = true;
@@ -97,14 +103,15 @@ void handleSerialCommand()
       lastSerialTime = millis();
       lastSerialCommand = '2';
     }
-    else if (command == '3')  // 「3」を受信した場合の処理
+    else if (command == '3') // 「3」を受信した場合の処理
     {
       // カンマで分割して時間パラメータを取得
       int commaIndex = input.indexOf(',');
-      if (commaIndex != -1) {
+      if (commaIndex != -1)
+      {
         String durationStr = input.substring(commaIndex + 1);
-        int newOnTime = durationStr.toInt();  // 受信した時間を一時変数に格納
-        
+        int newOnTime = durationStr.toInt(); // 受信した時間を一時変数に格納
+
         // デバッグ出力：パース結果
         Serial.print("コマンド: ");
         Serial.print(command);
@@ -112,12 +119,14 @@ void handleSerialCommand()
         Serial.print(durationStr);
         Serial.print(" 変換後の値: ");
         Serial.println(newOnTime);
-        
-        onTime3 = newOnTime;  // 値を設定
-      } else {
+
+        onTime3 = newOnTime; // 値を設定
+      }
+      else
+      {
         Serial.println("時間パラメータが見つかりません");
       }
-      
+
       output3Active = true;
       lastOutput3Time = millis();
       digitalWrite(OUTPUT_PIN_3, HIGH);
@@ -129,7 +138,7 @@ void handleSerialCommand()
 
 void handleButton()
 {
-  int reading = digitalRead(SWITCH_PIN);
+  int reading = digitalRead(SWITCH1_PIN);
 
   if (reading != lastButtonState)
   {
@@ -176,6 +185,41 @@ void handleButton()
   }
 
   lastButtonState = reading;
+}
+
+void handleButton2()
+{
+  int reading = digitalRead(SWITCH2_PIN);
+
+  if (reading != lastButtonState2)
+  {
+    lastDebounceTime2 = millis();
+  }
+
+  if ((millis() - lastDebounceTime2) > DEBOUNCE_DELAY)
+  {
+    if (reading != buttonState2)
+    {
+      buttonState2 = reading;
+
+      if (buttonState2 == LOW && buttonEnabled2)
+      {
+        // ボタンが押された時の処理
+        // シリアル通信で2を送信
+        Serial.println("2");
+
+        buttonEnabled2 = false;
+      }
+    }
+  }
+
+  // ボタンが離されたらフラグをリセット
+  if (reading == HIGH)
+  {
+    buttonEnabled2 = true;
+  }
+
+  lastButtonState2 = reading;
 }
 
 void updateOutputs()
@@ -228,9 +272,9 @@ void updateDisplay()
 
   // 入力ピンの状態
   M5.Lcd.setCursor(5, 25);
-  M5.Lcd.printf("IN GPIO6: %s", digitalRead(SWITCH_PIN) == HIGH ? "HIGH" : "LOW ");
+  M5.Lcd.printf("IN GPIO6: %s", digitalRead(SWITCH1_PIN) == HIGH ? "HIGH" : "LOW ");
   M5.Lcd.setCursor(5, 35);
-  M5.Lcd.printf("IN GPIO7: %s", digitalRead(LED_PIN) == HIGH ? "HIGH" : "LOW ");
+  M5.Lcd.printf("IN GPIO7: %s", digitalRead(SWITCH2_PIN) == HIGH ? "HIGH" : "LOW ");
 
   // 出力ピンの状態
   M5.Lcd.setCursor(5, 55);
@@ -263,6 +307,7 @@ void loop()
 {
   handleSerialCommand();
   handleButton();
+  handleButton2();
   updateOutputs();
   updateDisplay();
 }

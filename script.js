@@ -133,7 +133,7 @@ function showTitleScreen() {
   instructionBox.style.position = "absolute";
   instructionBox.style.width = "80%";
   instructionBox.style.maxWidth = "600px";
-  instructionBox.style.top = "50%";
+  instructionBox.style.top = "40%";
   instructionBox.style.left = "50%";
   instructionBox.style.transform = "translate(-50%, 0%)";
   instructionBox.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
@@ -147,15 +147,15 @@ function showTitleScreen() {
   instructionBox.innerHTML = `
     <h2 style="margin-bottom: 15px; font-size: 32px;">あそびかた</h2>
     <p>「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold; color: #FF5500;">ぱっ</span>」のリズムにあわせて</p>
-    <p>「<span style="font-weight: bold; color: #FF5500; font-size: 32px;">ぱっ</span>」のときに「1」キーを押そう！</p>
+    <p>「<span style="font-weight: bold; color: #FF5500; font-size: 32px;">ぱっ</span>」のときにマットをふもう！</p>
     <p style="margin-top: 15px;">タイミングがあえばポイントゲット！</p>
     <p>だんだん速くなるよ！どこまでできるかな？</p>
   `;
   container.appendChild(instructionBox);
 
   // スタート案内の表示
-  guideText.textContent = "スペースキーを押してスタート！";
-  guideText.style.top = "80%";
+  guideText.textContent = "奥のマットを踏んでスタート！";
+  guideText.style.top = "70%";
 
   container.style.backgroundColor = "yellow";
   displayTextElement.style.color = "black";
@@ -603,6 +603,9 @@ ws.onmessage = (event) => {
     console.log("シリアルポートから受信:", data.value);
     if (data.value === "1") {
       updateGameState("1");
+    } else if (data.value === "2" && !isGameMode) {
+      // "2"を受信した場合、ゲームをスタート
+      startGameMode();
     }
   }
 };
