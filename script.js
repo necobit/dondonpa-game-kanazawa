@@ -270,9 +270,9 @@ async function startGameMode() {
   score = 0;
   currentRound = 0;
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
+  updateScoreDisplay();
   scoreDisplay.style.display = "block";
   guideText.style.display = "none";
-  updateScoreDisplay();
 
   // 前回のタイトル要素があれば削除
   const oldTitle = document.querySelector(".game-title");
@@ -307,6 +307,7 @@ async function startGameMode() {
 
   // transformをリセット
   displayTextElement.style.transform = "translateY(0)";
+  displayTextElement.textContent = ""; // テキストをクリア
 
   // カウントダウン準備
   displayTextElement.style.fontSize = "200px";
@@ -339,6 +340,9 @@ async function startGameMode() {
   });
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
+  // スコア表示を確実に表示する
+  scoreDisplay.style.display = "block";
+
   // トランジションを再設定
   displayTextElement.style.transition = "all 2s ease-out";
 
@@ -346,6 +350,9 @@ async function startGameMode() {
 }
 
 async function playGameAnimation() {
+  // スコア表示を確実に表示する
+  scoreDisplay.style.display = "block";
+  
   while (isGameMode) {
     let startTime = Date.now();
     let cycleStart = Date.now();
@@ -452,6 +459,9 @@ async function endGame() {
   // フェードアウト
   fadeOverlay.style.opacity = "1";
   await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // スコア表示を非表示にする
+  scoreDisplay.style.display = "none";
 
   // 終了メッセージ
   container.style.backgroundColor = "yellow";
@@ -603,6 +613,10 @@ async function endGame() {
     ws.send(JSON.stringify({ type: "serial", value: (i % 2) + 1 }));
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
+  
+  // スコア表示を確実に非表示にする
+  scoreDisplay.style.display = "none";
+  displayTextElement.textContent = "";
 }
 
 function updateDisplay(state) {
