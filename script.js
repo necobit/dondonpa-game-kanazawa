@@ -16,7 +16,7 @@ const displayTextElement = document.createElement("div");
 displayTextElement.style.position = "absolute";
 displayTextElement.style.width = "100%";
 displayTextElement.style.textAlign = "center";
-displayTextElement.style.top = "45%";
+displayTextElement.style.top = "40%"; // 45%から40%に変更して中央に近づける
 container.appendChild(displayTextElement);
 
 // ガイド用のテキスト要素を追加
@@ -32,8 +32,9 @@ container.appendChild(guideText);
 // スコア表示用の要素を追加
 const scoreDisplay = document.createElement("div");
 scoreDisplay.style.position = "absolute";
-scoreDisplay.style.top = "20px";
-scoreDisplay.style.right = "20px";
+scoreDisplay.style.top = "5%"; // 上部に配置（タイトルの上）
+scoreDisplay.style.width = "100%"; // 幅を100%に設定
+scoreDisplay.style.textAlign = "center"; // 中央揃え
 scoreDisplay.style.fontSize = "36px";
 scoreDisplay.style.color = "black";
 scoreDisplay.style.display = "none";
@@ -123,9 +124,18 @@ function blinkGuide() {
 function showTitleScreen() {
   // タイトルの表示
   titleTextElement.textContent = "どんどんぱっ";
-  titleTextElement.style.fontSize = "160px"; // 修正: displayTextElement -> titleTextElement
-  titleTextElement.style.fontWeight = "bold"; // 修正: displayTextElement -> titleTextElement
-  titleTextElement.style.marginBottom = "20px"; // 修正: displayTextElement -> titleTextElement
+  titleTextElement.style.fontSize = "160px";
+  titleTextElement.style.fontWeight = "bold";
+  titleTextElement.style.marginBottom = "20px";
+  titleTextElement.style.display = "block";
+  titleTextElement.style.opacity = "1";
+  titleTextElement.style.top = "15%"; // 位置を上部に固定
+
+  // 既存の説明ボックスがあれば削除
+  const oldInstructionBox = document.getElementById("instruction-box");
+  if (oldInstructionBox) {
+    container.removeChild(oldInstructionBox);
+  }
 
   // ゲーム説明の追加
   const instructionBox = document.createElement("div");
@@ -155,10 +165,12 @@ function showTitleScreen() {
 
   // スタート案内の表示
   guideText.textContent = "奥のマットを踏んでスタート！";
-  guideText.style.top = "70%";
+  guideText.style.top = "80%"; // 位置を下に移動（80%）
+  guideText.style.display = "block";
 
   container.style.backgroundColor = "yellow";
   displayTextElement.style.color = "black";
+  displayTextElement.textContent = ""; // 表示テキストをクリア
   scoreDisplay.style.display = "none";
   blinkGuide();
 }
@@ -273,6 +285,9 @@ async function startGameMode() {
   if (instructionBox) {
     container.removeChild(instructionBox);
   }
+
+  // タイトルを消す
+  titleTextElement.style.display = "none";
 
   // フェードアウトエフェクト
   const fadeOverlay = document.createElement("div");
@@ -510,44 +525,57 @@ async function endGame() {
   container.removeChild(resultMessage);
 
   // スコアを小さくして下に移動
-  displayTextElement.style.fontSize = "64px";
-  displayTextElement.style.transform = "translateY(150px)"; // 移動位置をさらに下に
+  displayTextElement.style.fontSize = "100px";
+  displayTextElement.style.transform = "translateY(-340px)"; // 移動位置をさらに下に
 
   // タイトルの表示
-  const titleText = document.createElement("div");
-  titleText.className = "game-title"; // クラス名を追加
-  titleText.style.position = "absolute";
-  titleText.style.width = "100%";
-  titleText.style.textAlign = "center";
-  titleText.style.top = "35%";
-  titleText.style.fontSize = "120px";
-  titleText.style.fontWeight = "bold";
-  titleText.style.color = "black";
-  titleText.textContent = "どんどんぱっ";
-  titleText.style.opacity = "0";
-  titleText.style.transition = "opacity 1s ease-out";
-  container.insertBefore(titleText, displayTextElement);
+  titleTextElement.style.display = "block"; // 既存のタイトル要素を表示
+  titleTextElement.style.opacity = "0";
+  titleTextElement.style.transition = "opacity 1s ease-out";
+
+  // タイトルをフェードイン
+  setTimeout(() => {
+    titleTextElement.style.opacity = "1";
+  }, 50);
 
   // フェードイン
   fadeOverlay.style.opacity = "0";
   await new Promise((resolve) => setTimeout(resolve, 500));
   container.removeChild(fadeOverlay);
 
-  // タイトルをフェードイン
-  setTimeout(() => {
-    titleText.style.opacity = "1";
-  }, 50);
-
   // ガイドテキストの設定と点滅開始
   guideText.style.fontSize = "32px";
-  guideText.style.top = "65%";
-  guideText.textContent = "スペースキーを押してもう一回！";
+  guideText.style.top = "80%"; // 位置を下に移動（80%）
+  guideText.textContent = "奥のマットを踏んでスタート！";
   guideText.style.display = "block";
   guideText.style.color = "black";
   blinkGuide();
 
-  // 説明を再表示
-  showTitleScreen();
+  // 説明を再表示（タイトル表示を削除して修正）
+  const instructionBox = document.createElement("div");
+  instructionBox.id = "instruction-box";
+  instructionBox.style.position = "absolute";
+  instructionBox.style.width = "80%";
+  instructionBox.style.maxWidth = "600px";
+  instructionBox.style.top = "40%";
+  instructionBox.style.left = "50%";
+  instructionBox.style.transform = "translate(-50%, 0%)";
+  instructionBox.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+  instructionBox.style.borderRadius = "15px";
+  instructionBox.style.padding = "20px";
+  instructionBox.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+  instructionBox.style.textAlign = "center";
+  instructionBox.style.fontSize = "24px";
+  instructionBox.style.color = "black";
+  instructionBox.style.lineHeight = "1.5";
+  instructionBox.innerHTML = `
+    <h2 style="margin-bottom: 15px; font-size: 32px;">あそびかた</h2>
+    <p>「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold; color: #FF5500;">ぱっ</span>」のリズムにあわせて</p>
+    <p>「<span style="font-weight: bold; color: #FF5500; font-size: 32px;">ぱっ</span>」のときにマットをふもう！</p>
+    <p style="margin-top: 15px;">タイミングがあえばポイントゲット！</p>
+    <p>だんだん速くなるよ！どこまでできるかな？</p>
+  `;
+  container.appendChild(instructionBox);
 
   // シリアルポートに1と2を交互に送信
   for (let i = 0; i < 10; i++) {
