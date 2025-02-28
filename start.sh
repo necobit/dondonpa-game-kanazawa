@@ -19,8 +19,8 @@ if [ ! -f "package.json" ]; then
 fi
 
 # 必要なパッケージをインストール
-echo "必要なパッケージをインストールします..."
-npm install serialport express ws
+# echo "必要なパッケージをインストールします..."
+# npm install serialport express ws
 
 # 既存のNode.jsプロセスを終了
 echo "既存のサーバープロセスを終了します..."

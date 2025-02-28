@@ -288,6 +288,7 @@ async function startGameMode() {
 
   // タイトルを消す
   titleTextElement.style.display = "none";
+  displayTextElement.style.top = "40%"; // 上部に配置
 
   // フェードアウトエフェクト
   const fadeOverlay = document.createElement("div");
@@ -516,36 +517,46 @@ async function endGame() {
     resultMessage.style.opacity = "1";
   }, 50);
 
-  // 3秒待機
+  // 待機
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  // フェードアウト
-  // fadeOverlay.style.opacity = "0";
-  // container.appendChild(fadeOverlay);
-  // fadeOverlay.style.opacity = "1";
-  // await new Promise((resolve) => setTimeout(resolve, 500));
+  // 次の画面へのフェードアウト
+  const nextFadeOverlay = document.createElement("div");
+  nextFadeOverlay.style.position = "absolute";
+  nextFadeOverlay.style.width = "100%";
+  nextFadeOverlay.style.height = "100%";
+  nextFadeOverlay.style.backgroundColor = "black";
+  nextFadeOverlay.style.opacity = "0";
+  nextFadeOverlay.style.transition = "opacity 0.5s ease";
+  nextFadeOverlay.style.zIndex = "999";
+  container.appendChild(nextFadeOverlay);
+
+  nextFadeOverlay.style.opacity = "1";
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   // 結果表示を削除
   container.removeChild(resultMessage);
 
   // スコアを小さくして上に移動
-  displayTextElement.style.fontSize = "100px";
-  displayTextElement.style.transform = "translateY(-340px)";
+  displayTextElement.style.fontSize = "60px";
+  displayTextElement.style.transform = "translateY(00px)";
+  displayTextElement.style.top = "5%"; // 上部に配置
 
   // タイトルの表示
   titleTextElement.style.display = "block"; // 既存のタイトル要素を表示
   titleTextElement.style.opacity = "0";
   titleTextElement.style.transition = "opacity 1s ease-out";
+  titleTextElement.style.top = "15%"; // タイトル位置を調整
+
+  // フェードイン
+  nextFadeOverlay.style.opacity = "0";
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  container.removeChild(nextFadeOverlay);
 
   // タイトルをフェードイン
   setTimeout(() => {
     titleTextElement.style.opacity = "1";
   }, 50);
-
-  // フェードイン
-  fadeOverlay.style.opacity = "0";
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  container.removeChild(fadeOverlay);
 
   // ガイドテキストの設定と点滅開始
   guideText.style.fontSize = "32px";
@@ -555,7 +566,13 @@ async function endGame() {
   guideText.style.color = "black";
   blinkGuide();
 
-  // 説明を再表示（タイトル表示を削除して修正）
+  // 既存の説明ボックスがあれば削除
+  const oldInstructionBox = document.getElementById("instruction-box");
+  if (oldInstructionBox) {
+    container.removeChild(oldInstructionBox);
+  }
+
+  // 説明を再表示
   const instructionBox = document.createElement("div");
   instructionBox.id = "instruction-box";
   instructionBox.style.position = "absolute";
