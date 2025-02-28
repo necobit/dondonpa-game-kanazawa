@@ -495,9 +495,13 @@ async function endGame() {
   resultMessage.style.transition = "opacity 1s ease-out";
 
   // スコアに応じたメッセージ
-  if (score >= 1000) {
-    resultMessage.textContent = "すごい！リズムの天才だ！";
-  } else if (score >= 500) {
+  if (score >= 3000) {
+    resultMessage.textContent = "神";
+  } else if (score >= 2000) {
+    resultMessage.textContent = "めっちゃすごい！";
+  } else if (score >= 1500) {
+    resultMessage.textContent = "すごい！";
+  } else if (score >= 1000) {
     resultMessage.textContent = "上手だね！";
   } else if (score >= 200) {
     resultMessage.textContent = "なかなかいいね！";
@@ -513,20 +517,20 @@ async function endGame() {
   }, 50);
 
   // 3秒待機
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   // フェードアウト
-  fadeOverlay.style.opacity = "0";
-  container.appendChild(fadeOverlay);
-  fadeOverlay.style.opacity = "1";
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  // fadeOverlay.style.opacity = "0";
+  // container.appendChild(fadeOverlay);
+  // fadeOverlay.style.opacity = "1";
+  // await new Promise((resolve) => setTimeout(resolve, 500));
 
   // 結果表示を削除
   container.removeChild(resultMessage);
 
-  // スコアを小さくして下に移動
+  // スコアを小さくして上に移動
   displayTextElement.style.fontSize = "100px";
-  displayTextElement.style.transform = "translateY(-340px)"; // 移動位置をさらに下に
+  displayTextElement.style.transform = "translateY(-340px)";
 
   // タイトルの表示
   titleTextElement.style.display = "block"; // 既存のタイトル要素を表示
