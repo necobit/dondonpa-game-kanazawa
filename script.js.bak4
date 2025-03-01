@@ -447,7 +447,7 @@ async function playGameAnimation() {
 }
 
 async function endGame() {
-  // isGameMode = false; // 位置を変更
+  isGameMode = false;
 
   // フェードアウトエフェクト
   const fadeOverlay = document.createElement("div");
@@ -482,10 +482,10 @@ async function endGame() {
 
   await new Promise((resolve) => setTimeout(resolve, 1500));
 
-  // // 結果発表のアニメーション
-  // displayTextElement.style.fontSize = "80px";
-  // displayTextElement.textContent = "けっか発表...";
-  // await new Promise((resolve) => setTimeout(resolve, 1500));
+  // 結果発表のアニメーション
+  displayTextElement.style.fontSize = "80px";
+  displayTextElement.textContent = "けっか発表...";
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 
   // スコアの大きな表示（中央）
   showParticles(); // パーティクルエフェクト
@@ -532,7 +532,7 @@ async function endGame() {
   }, 50);
 
   // 待機
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   // 次の画面へのフェードアウト
   const nextFadeOverlay = document.createElement("div");
@@ -572,6 +572,14 @@ async function endGame() {
     titleTextElement.style.opacity = "1";
   }, 50);
 
+  // ガイドテキストの設定と点滅開始
+  guideText.style.fontSize = "32px";
+  guideText.style.top = "80%"; // 位置を下に移動（80%）
+  guideText.textContent = "奥のマットを踏んでスタート！";
+  guideText.style.display = "block";
+  guideText.style.color = "black";
+  blinkGuide();
+
   // 既存の説明ボックスがあれば削除
   const oldInstructionBox = document.getElementById("instruction-box");
   if (oldInstructionBox) {
@@ -604,16 +612,11 @@ async function endGame() {
   `;
   container.appendChild(instructionBox);
 
-  // ガイドテキストの設定と点滅開始
-  guideText.style.fontSize = "32px";
-  guideText.style.top = "80%"; // 位置を下に移動（80%）
-  guideText.textContent = "奥のマットを踏んでスタート！";
-  guideText.style.display = "block";
-  guideText.style.color = "black";
-
-  // ゲームモードをここで終了
-  isGameMode = false;
-  blinkGuide();
+  // シリアルポートに1と2を交互に送信
+  for (let i = 0; i < 10; i++) {
+    ws.send(JSON.stringify({ type: "serial", value: (i % 2) + 1 }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
 }
 
 function updateDisplay(state) {

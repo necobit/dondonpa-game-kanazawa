@@ -93,6 +93,7 @@ let gameTimings = {
   don2: 500,
   pa: 1000,
 };
+let isReadyForNextGame = true; // ゲーム開始準備が整っているかのフラグ
 
 // パーティクルの色とサイズのバリエーション
 const PARTICLE_COLORS = [
@@ -266,10 +267,13 @@ function showParticles() {
 async function startGameMode() {
   if (isGameMode) return;
 
+  isReadyForNextGame = false; // ゲーム開始準備フラグをオフに
   isGameMode = true;
   score = 0;
   currentRound = 0;
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
+  
+  // スコアを0にリセットして表示を更新
   updateScoreDisplay();
   scoreDisplay.style.display = "block";
   guideText.style.display = "none";
@@ -309,161 +313,6 @@ async function startGameMode() {
   fadeOverlay.style.opacity = "1";
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // transformをリセット
-  displayTextElement.style.transform = "translateY(0)";
-  displayTextElement.textContent = ""; // テキストをクリア
-
-  // カウントダウン準備
-  displayTextElement.style.fontSize = "200px";
-  displayTextElement.style.transition = "none"; // トランジションを一時的に無効化
-
-  // フェードイン
-  fadeOverlay.style.opacity = "0";
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  container.removeChild(fadeOverlay);
-
-  // 準備メッセージ
-  updateDisplay({
-    text: "準備はいい？",
-    backgroundColor: "yellow",
-    textColor: "black",
-  });
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-
-  // カウントダウン
-  updateDisplay({ text: "3", backgroundColor: "yellow", textColor: "black" });
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  updateDisplay({ text: "2", backgroundColor: "yellow", textColor: "black" });
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  updateDisplay({ text: "1", backgroundColor: "yellow", textColor: "black" });
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  updateDisplay({
-    text: "スタート！",
-    backgroundColor: "yellow",
-    textColor: "black",
-  });
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // スコア表示を確実に表示する
-  scoreDisplay.style.display = "block";
-
-  // トランジションを再設定
-  displayTextElement.style.transition = "all 2s ease-out";
-
-  playGameAnimation();
-}
-
-async function playGameAnimation() {
-  // スコア表示を確実に表示する
-  scoreDisplay.style.display = "block";
-
-  while (isGameMode) {
-    let startTime = Date.now();
-    let cycleStart = Date.now();
-    displayTextElement.style.fontSize = "200px";
-
-    // First どん (500msec)
-    timingWindow = false;
-    const baseSpeed = 500; // 基準速度
-    const currentSpeed1 = gameTimings.don1;
-    const speedRatio1 = baseSpeed / currentSpeed1;
-    const highDuration1 = Math.max(
-      20,
-      Math.floor(ANIMATION_STATES.DON1.highDuration / speedRatio1)
-    );
-
-    // デバッグ出力
-    console.log(`
-      1回目のどん:
-      基準速度: ${baseSpeed}msec
-      現在の速度: ${currentSpeed1}msec
-      スピード比率: ${speedRatio1}
-      計算されたHIGH時間: ${highDuration1}msec
-    `);
-
-    updateDisplay(ANIMATION_STATES.DON1);
-    ws.send(JSON.stringify({ type: "don", duration: highDuration1 }));
-    await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
-    clearDisplay();
-    await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
-
-    // Second どん (500msec)
-    const currentSpeed2 = gameTimings.don2;
-    const speedRatio2 = baseSpeed / currentSpeed2;
-    const highDuration2 = Math.max(
-      20,
-      Math.floor(ANIMATION_STATES.DON2.highDuration / speedRatio2)
-    );
-
-    // デバッグ出力
-    console.log(`
-      2回目のどん:
-      基準速度: ${baseSpeed}msec
-      現在の速度: ${currentSpeed2}msec
-      スピード比率: ${speedRatio2}
-      計算されたHIGH時間: ${highDuration2}msec
-    `);
-
-    updateDisplay(ANIMATION_STATES.DON2);
-    ws.send(JSON.stringify({ type: "don", duration: highDuration2 }));
-    await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
-    clearDisplay();
-    await new Promise((resolve) =>
-      setTimeout(resolve, gameTimings.don2 / 2 - 100)
-    );
-
-    timingWindow = true; // ぱっの100msec手前からスコア加算のタイミングウィンドウを有効化
-    startTime = Date.now();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // ぱっ (1000msec)
-    updateDisplay(ANIMATION_STATES.PA);
-    // ws.send(JSON.stringify({ type: "pa" }));  //「ぱっ」はユーザーが叩くためコメントアウト
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    timingWindow = false;
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, gameTimings.pa / 2 - 100)
-    );
-    clearDisplay();
-    await new Promise((resolve) => setTimeout(resolve, gameTimings.pa / 2));
-
-    currentRound++;
-    if (currentRound % 1 === 0) {
-      // 速度を20%上げる
-      gameTimings.don1 *= 0.95;
-      gameTimings.don2 *= 0.95;
-      gameTimings.pa *= 0.95;
-      console.log("新しい間隔:", gameTimings);
-    }
-
-    // ゲーム終了判定
-    if (gameTimings.don1 <= 100) {
-      await endGame();
-      break;
-    }
-  }
-}
-
-async function endGame() {
-  // isGameMode = false; // 位置を変更
-
-  // フェードアウトエフェクト
-  const fadeOverlay = document.createElement("div");
-  fadeOverlay.style.position = "absolute";
-  fadeOverlay.style.width = "100%";
-  fadeOverlay.style.height = "100%";
-  fadeOverlay.style.backgroundColor = "black";
-  fadeOverlay.style.opacity = "0";
-  fadeOverlay.style.transition = "opacity 0.5s ease";
-  fadeOverlay.style.zIndex = "999";
-  container.appendChild(fadeOverlay);
-
-  // フェードアウト
-  fadeOverlay.style.opacity = "1";
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
   // スコア表示を非表示にする
   scoreDisplay.style.display = "none";
 
@@ -482,10 +331,10 @@ async function endGame() {
 
   await new Promise((resolve) => setTimeout(resolve, 1500));
 
-  // // 結果発表のアニメーション
-  // displayTextElement.style.fontSize = "80px";
-  // displayTextElement.textContent = "けっか発表...";
-  // await new Promise((resolve) => setTimeout(resolve, 1500));
+  // 結果発表のアニメーション
+  displayTextElement.style.fontSize = "80px";
+  displayTextElement.textContent = "けっか発表...";
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 
   // スコアの大きな表示（中央）
   showParticles(); // パーティクルエフェクト
@@ -532,7 +381,7 @@ async function endGame() {
   }, 50);
 
   // 待機
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   // 次の画面へのフェードアウト
   const nextFadeOverlay = document.createElement("div");
@@ -572,6 +421,14 @@ async function endGame() {
     titleTextElement.style.opacity = "1";
   }, 50);
 
+  // ガイドテキストの設定と点滅開始
+  guideText.style.fontSize = "32px";
+  guideText.style.top = "80%"; // 位置を下に移動（80%）
+  guideText.textContent = "奥のマットを踏んでスタート！";
+  guideText.style.display = "block";
+  guideText.style.color = "black";
+  blinkGuide();
+
   // 既存の説明ボックスがあれば削除
   const oldInstructionBox = document.getElementById("instruction-box");
   if (oldInstructionBox) {
@@ -604,16 +461,14 @@ async function endGame() {
   `;
   container.appendChild(instructionBox);
 
-  // ガイドテキストの設定と点滅開始
-  guideText.style.fontSize = "32px";
-  guideText.style.top = "80%"; // 位置を下に移動（80%）
-  guideText.textContent = "奥のマットを踏んでスタート！";
-  guideText.style.display = "block";
-  guideText.style.color = "black";
-
-  // ゲームモードをここで終了
-  isGameMode = false;
-  blinkGuide();
+  // シリアルポートに1と2を交互に送信
+  for (let i = 0; i < 10; i++) {
+    ws.send(JSON.stringify({ type: "serial", value: (i % 2) + 1 }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  
+  // ゲーム開始準備完了
+  isReadyForNextGame = true;
 }
 
 function updateDisplay(state) {
@@ -633,20 +488,22 @@ function updateScoreDisplay() {
 }
 
 function updateGameState(value) {
-  if (value === "1") {
-    if (timingWindow) {
-      score += 100;
-      updateScoreDisplay();
-      showScoreEffect(100, true);
-      showParticles();
-    } else if (isGameMode) {
-      score = Math.max(0, score - 50); // スコアが0未満にならないように
-      updateScoreDisplay();
-      showScoreEffect(50, false);
-      flashRed();
+  if (isReadyForNextGame) {
+    if (value === "1") {
+      if (timingWindow) {
+        score += 100;
+        updateScoreDisplay();
+        showScoreEffect(100, true);
+        showParticles();
+      } else if (isGameMode) {
+        score = Math.max(0, score - 50); // スコアが0未満にならないように
+        updateScoreDisplay();
+        showScoreEffect(50, false);
+        flashRed();
+      }
+    } else if (value === " " && !isGameMode) {
+      startGameMode();
     }
-  } else if (value === " " && !isGameMode) {
-    startGameMode();
   }
 }
 
@@ -663,8 +520,8 @@ ws.onmessage = (event) => {
     console.log("シリアルポートから受信:", data.value);
     if (data.value === "1") {
       updateGameState("1");
-    } else if (data.value === "2" && !isGameMode) {
-      // "2"を受信した場合、ゲームをスタート
+    } else if (data.value === "2" && !isGameMode && isReadyForNextGame) {
+      // "2"を受信した場合、ゲームモードでなくかつ準備ができていればゲームをスタート
       startGameMode();
     }
   }
@@ -672,14 +529,16 @@ ws.onmessage = (event) => {
 
 // キーボード入力ハンドラ
 document.addEventListener("keydown", (event) => {
-  if (event.key === "1" || event.key === " ") {
-    updateGameState(event.key);
-    if (event.key === "1") {
-      ws.send(JSON.stringify({ type: "keyboard", value: event.key }));
+  if (isReadyForNextGame) {
+    if (event.key === "1" || event.key === " ") {
+      updateGameState(event.key);
+      if (event.key === "1") {
+        ws.send(JSON.stringify({ type: "keyboard", value: event.key }));
+      }
+    } else if (event.key === "2" && !isGameMode) {
+      // 2キーを押した場合、ゲームモードでなければゲームをスタート
+      startGameMode();
     }
-  } else if (event.key === "2" && !isGameMode) {
-    // 2キーを押した場合、ゲームモードでなければゲームをスタート
-    startGameMode();
   }
 });
 
@@ -692,3 +551,18 @@ function flashRed() {
     container.style.backgroundColor = "yellow";
   }, 150);
 }
+
+// キーボード入力ハンドラ
+document.addEventListener("keydown", (event) => {
+  if (isReadyForNextGame) {
+    if (event.key === "1" || event.key === " ") {
+      updateGameState(event.key);
+      if (event.key === "1") {
+        ws.send(JSON.stringify({ type: "keyboard", value: event.key }));
+      }
+    } else if (event.key === "2" && !isGameMode && isReadyForNextGame) {
+      // 2キーを押した場合、ゲームモードでなくかつ準備ができていればゲームをスタート
+      startGameMode();
+    }
+  }
+});
