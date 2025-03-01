@@ -19,7 +19,7 @@ let serialPort = null;
 const initSerialPort = async () => {
   try {
     serialPort = new SerialPort({
-      path: "/dev/tty.usbmodem1124401",
+      path: "/dev/tty.usbmodem1101",
       baudRate: 115200,
     });
 
