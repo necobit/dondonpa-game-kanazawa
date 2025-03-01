@@ -680,6 +680,9 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "1") {
       ws.send(JSON.stringify({ type: "keyboard", value: event.key }));
     }
+  } else if (event.key === "2" && !isGameMode) {
+    // 2キーを押した場合、ゲームモードでなければゲームをスタート
+    startGameMode();
   }
 });
 
