@@ -509,19 +509,51 @@ async function endGame() {
   resultMessage.style.opacity = "0";
   resultMessage.style.transition = "opacity 1s ease-out";
 
-  // スコアに応じたメッセージ
-  if (score >= 3000) {
-    resultMessage.textContent = "神";
-  } else if (score >= 2000) {
-    resultMessage.textContent = "めっちゃすごい！";
-  } else if (score >= 1500) {
-    resultMessage.textContent = "すごい！";
-  } else if (score >= 1000) {
-    resultMessage.textContent = "上手だね！";
-  } else if (score >= 200) {
-    resultMessage.textContent = "なかなかいいね！";
-  } else {
-    resultMessage.textContent = "また挑戦してみよう！";
+  // APIから評価コメントを取得
+  try {
+    const response = await fetch(`/api/score-evaluation?score=${score}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.evaluation) {
+      resultMessage.textContent = data.evaluation;
+    } else {
+      // APIエラー時はデフォルトのメッセージを表示
+      if (score >= 3000) {
+        resultMessage.textContent = "神";
+      } else if (score >= 2000) {
+        resultMessage.textContent = "めっちゃすごい！";
+      } else if (score >= 1500) {
+        resultMessage.textContent = "すごい！";
+      } else if (score >= 1000) {
+        resultMessage.textContent = "上手だね！";
+      } else if (score >= 200) {
+        resultMessage.textContent = "なかなかいいね！";
+      } else {
+        resultMessage.textContent = "また挑戦してみよう！";
+      }
+    }
+  } catch (error) {
+    console.error("評価コメント取得エラー:", error);
+    // エラー時はデフォルトのメッセージを表示
+    if (score >= 3000) {
+      resultMessage.textContent = "神";
+    } else if (score >= 2000) {
+      resultMessage.textContent = "めっちゃすごい！";
+    } else if (score >= 1500) {
+      resultMessage.textContent = "すごい！";
+    } else if (score >= 1000) {
+      resultMessage.textContent = "上手だね！";
+    } else if (score >= 200) {
+      resultMessage.textContent = "なかなかいいね！";
+    } else {
+      resultMessage.textContent = "また挑戦してみよう！";
+    }
   }
 
   container.appendChild(resultMessage);
