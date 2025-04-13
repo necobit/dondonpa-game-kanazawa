@@ -2,7 +2,7 @@ const express = require("express");
 const { SerialPort } = require("serialport");
 const WebSocket = require("ws");
 const path = require("path");
-const { getScoreEvaluation, checkOllamaAvailability } = require("./ollama-api");
+const { getScoreEvaluation, checkOllamaAvailability, getRealtimeComment } = require("./ollama-api");
 
 const app = express();
 const port = 3000;
@@ -38,6 +38,42 @@ app.get("/api/score-evaluation", async (req, res) => {
       success: false,
       message: "サーバーエラーが発生しました",
       evaluation: "すごい！頑張りましたね！"
+    });
+  }
+});
+
+// リアルタイムコメントAPIエンドポイント
+app.get("/api/realtime-comment", async (req, res) => {
+  try {
+    const score = parseInt(req.query.score) || 0;
+    const isPositive = req.query.isPositive === 'true';
+    
+    // Ollamaの可用性をチェック
+    const ollamaAvailable = await checkOllamaAvailability();
+    if (!ollamaAvailable) {
+      console.log("Ollamaが利用できないため、フォールバックコメントを使用します");
+      const fallbackComments = isPositive ? 
+        ['すごい！', 'ナイス！', 'いいね！', 'グッド！', '素晴らしい！'] :
+        ['おしい！', '惜しい！', 'あらら…', 'がんばれ！', '次は当てよう！'];
+      
+      const randomIndex = Math.floor(Math.random() * fallbackComments.length);
+      
+      return res.json({
+        success: false,
+        message: "Ollamaサーバーに接続できません",
+        comment: fallbackComments[randomIndex]
+      });
+    }
+    
+    // Ollamaを使用してリアルタイムコメントを取得
+    const result = await getRealtimeComment(score, isPositive);
+    res.json(result);
+  } catch (error) {
+    console.error("リアルタイムコメントAPI呼び出しエラー:", error);
+    res.status(500).json({
+      success: false,
+      message: "サーバーエラーが発生しました",
+      comment: isPositive ? "ナイス！" : "おしい！"
     });
   }
 });

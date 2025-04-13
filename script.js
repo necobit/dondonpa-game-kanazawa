@@ -40,6 +40,20 @@ scoreDisplay.style.color = "black";
 scoreDisplay.style.display = "none";
 container.appendChild(scoreDisplay);
 
+// リアルタイムコメント表示用の要素を追加
+const commentDisplay = document.createElement("div");
+commentDisplay.style.position = "absolute";
+commentDisplay.style.top = "12%"; // スコア表示の下に配置
+commentDisplay.style.width = "100%";
+commentDisplay.style.textAlign = "center";
+commentDisplay.style.fontSize = "28px";
+commentDisplay.style.color = "#333";
+commentDisplay.style.fontWeight = "bold";
+commentDisplay.style.display = "none";
+commentDisplay.style.opacity = "0";
+commentDisplay.style.transition = "opacity 0.5s ease-in-out";
+container.appendChild(commentDisplay);
+
 // スコアエフェクト用のコンテナ
 const scoreEffectContainer = document.createElement("div");
 scoreEffectContainer.style.position = "absolute";
@@ -203,6 +217,48 @@ function showScoreEffect(score, isPositive = true) {
       scoreEffectContainer.removeChild(effect);
     }
   }, 1000);
+  
+  // リアルタイムコメントの取得と表示
+  fetchRealtimeComment(score, isPositive);
+}
+
+// リアルタイムコメントを取得して表示する関数
+async function fetchRealtimeComment(score, isPositive) {
+  try {
+    const response = await fetch(`/api/realtime-comment?score=${score}&isPositive=${isPositive}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    
+    const data = await response.json();
+    
+    if (data.success || data.comment) {
+      showComment(data.comment);
+    }
+  } catch (error) {
+    console.error("リアルタイムコメント取得エラー:", error);
+    // エラー時は何も表示しない
+  }
+}
+
+// コメントを表示する関数
+function showComment(comment) {
+  // 既存のコメントをフェードアウト
+  commentDisplay.style.opacity = "0";
+  
+  // 新しいコメントを設定して表示
+  setTimeout(() => {
+    commentDisplay.textContent = comment;
+    commentDisplay.style.display = "block";
+    commentDisplay.style.opacity = "1";
+    
+    // 3秒後にフェードアウト
+    setTimeout(() => {
+      commentDisplay.style.opacity = "0";
+    }, 3000);
+  }, 300); // 前のコメントのフェードアウトを待つ
 }
 
 function createParticle() {
@@ -266,16 +322,22 @@ function showParticles() {
 async function startGameMode() {
   if (isGameMode) return;
 
+  // ゲームモードの初期化
   isGameMode = true;
+  isGameActive = false;
   score = 0;
   currentRound = 0;
+  timingWindow = false;
+  
+  // ゲームタイミングの初期化
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
-  updateScoreDisplay();
+  
+  // スコア表示の初期化と表示
+  scoreDisplay.textContent = "Score: 0";
   scoreDisplay.style.display = "block";
+  commentDisplay.style.display = "none"; // コメント表示を初期化
+  
   guideText.style.display = "none";
-
-  // スコア表示を確実に非表示にする
-  scoreDisplay.style.display = "none";
   displayTextElement.textContent = "";
 
   // 前回のタイトル要素があれば削除

@@ -81,6 +81,66 @@ async function getScoreEvaluation(score) {
   }
 }
 
+/**
+ * スコア変化に対する短いリアルタイムコメントを生成する
+ * @param {number} score - 現在のスコア
+ * @param {boolean} isPositive - スコア変化が正か負か
+ * @returns {Promise<Object>} - 生成されたコメント
+ */
+async function getRealtimeComment(score, isPositive) {
+  try {
+    // プロンプトの作成
+    const prompt = `
+あなたはどんどんぱっというリズムゲームの実況者です。
+プレイヤーのスコアが${isPositive ? '増加' : '減少'}しました。現在の合計スコアは${score}点です。
+
+以下の条件を満たす一言コメントを作成してください：
+- 15文字以内の非常に短いコメント
+- ${isPositive ? '称賛や励まし' : '残念がる'}内容
+- 日本語で
+- 絵文字は使わない
+- 「すごい！」「おしい！」のような感情的な表現
+
+コメントのみを出力してください。
+`;
+
+    // Ollamaへのリクエスト
+    const response = await axios.post(OLLAMA_ENDPOINT, {
+      model: MODEL_NAME,
+      prompt: prompt,
+      stream: false,
+      options: {
+        temperature: 0.8,
+        top_p: 0.95,
+        max_tokens: 50
+      }
+    });
+
+    // レスポンスからコメントを抽出
+    const comment = response.data.response.trim();
+    
+    return {
+      success: true,
+      comment: comment
+    };
+  } catch (error) {
+    console.error('リアルタイムコメント生成エラー:', error.message);
+    
+    // エラー時のフォールバックコメント
+    const fallbackComments = isPositive ? 
+      ['すごい！', 'ナイス！', 'いいね！', 'グッド！', '素晴らしい！'] :
+      ['おしい！', '惜しい！', 'あらら…', 'がんばれ！', '次は当てよう！'];
+    
+    const randomIndex = Math.floor(Math.random() * fallbackComments.length);
+    
+    return {
+      success: false,
+      message: 'コメント生成に失敗しました: ' + error.message,
+      comment: fallbackComments[randomIndex]
+    };
+  }
+}
+
 // Ollamaが利用可能かチェックする関数
 async function checkOllamaAvailability() {
   try {
@@ -94,5 +154,6 @@ async function checkOllamaAvailability() {
 
 module.exports = {
   getScoreEvaluation,
-  checkOllamaAvailability
+  checkOllamaAvailability,
+  getRealtimeComment
 };
