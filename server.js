@@ -2,6 +2,7 @@ const express = require("express");
 const { SerialPort } = require("serialport");
 const WebSocket = require("ws");
 const path = require("path");
+const { getScoreEvaluation, checkOllamaAvailability } = require("./ollama-api");
 
 const app = express();
 const port = 3000;
@@ -10,6 +11,35 @@ const port = 3000;
 app.use(express.static(path.join(__dirname)));
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "main.html"));
+});
+
+// スコア評価APIエンドポイント（Ollama版）
+app.get("/api/score-evaluation", async (req, res) => {
+  try {
+    const score = parseInt(req.query.score) || 0;
+    
+    // Ollamaの可用性をチェック
+    const ollamaAvailable = await checkOllamaAvailability();
+    if (!ollamaAvailable) {
+      console.log("Ollamaが利用できないため、フォールバックメッセージを使用します");
+      return res.json({
+        success: false,
+        message: "Ollamaサーバーに接続できません",
+        evaluation: `${score}点獲得！次はもっと高得点を目指そう！`
+      });
+    }
+    
+    // Ollamaを使用して評価コメントを取得
+    const result = await getScoreEvaluation(score);
+    res.json(result);
+  } catch (error) {
+    console.error("評価API呼び出しエラー:", error);
+    res.status(500).json({
+      success: false,
+      message: "サーバーエラーが発生しました",
+      evaluation: "すごい！頑張りましたね！"
+    });
+  }
 });
 
 // シリアルポートの設定
