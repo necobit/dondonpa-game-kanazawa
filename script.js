@@ -531,89 +531,148 @@ async function endGame() {
     resultMessage.style.opacity = "1";
   }, 50);
 
-  // 待機
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  // 続行ガイド表示
+  const continueGuide = document.createElement("div");
+  continueGuide.style.position = "absolute";
+  continueGuide.style.width = "100%";
+  continueGuide.style.textAlign = "center";
+  continueGuide.style.top = "80%";
+  continueGuide.style.fontSize = "28px";
+  continueGuide.style.color = "black";
+  continueGuide.style.opacity = "0";
+  continueGuide.style.transition = "opacity 1s ease-out";
+  continueGuide.textContent = "奥のマットを踏むとタイトルへ戻る";
+  container.appendChild(continueGuide);
 
-  // 次の画面へのフェードアウト
-  const nextFadeOverlay = document.createElement("div");
-  nextFadeOverlay.style.position = "absolute";
-  nextFadeOverlay.style.width = "100%";
-  nextFadeOverlay.style.height = "100%";
-  nextFadeOverlay.style.backgroundColor = "black";
-  nextFadeOverlay.style.opacity = "0";
-  nextFadeOverlay.style.transition = "opacity 0.5s ease";
-  nextFadeOverlay.style.zIndex = "999";
-  container.appendChild(nextFadeOverlay);
-
-  nextFadeOverlay.style.opacity = "1";
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // 結果表示を削除
-  container.removeChild(resultMessage);
-
-  // スコアを小さくして上に移動
-  displayTextElement.style.fontSize = "60px";
-  displayTextElement.style.transform = "translateY(00px)";
-  displayTextElement.style.top = "5%"; // 上部に配置
-
-  // タイトルの表示
-  titleTextElement.style.display = "block"; // 既存のタイトル要素を表示
-  titleTextElement.style.opacity = "0";
-  titleTextElement.style.transition = "opacity 1s ease-out";
-  titleTextElement.style.top = "15%"; // タイトル位置を調整
-
-  // フェードイン
-  nextFadeOverlay.style.opacity = "0";
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  container.removeChild(nextFadeOverlay);
-
-  // タイトルをフェードイン
+  // 続行ガイドをフェードイン（評価メッセージの後）
   setTimeout(() => {
-    titleTextElement.style.opacity = "1";
-  }, 50);
+    continueGuide.style.opacity = "1";
+  }, 1000);
 
-  // 既存の説明ボックスがあれば削除
-  const oldInstructionBox = document.getElementById("instruction-box");
-  if (oldInstructionBox) {
-    container.removeChild(oldInstructionBox);
-  }
+  // 入力待機フラグ
+  let waitingForInput = true;
 
-  // 説明を再表示
-  const instructionBox = document.createElement("div");
-  instructionBox.id = "instruction-box";
-  instructionBox.style.position = "absolute";
-  instructionBox.style.width = "80%";
-  instructionBox.style.maxWidth = "600px";
-  instructionBox.style.top = "40%";
-  instructionBox.style.left = "50%";
-  instructionBox.style.transform = "translate(-50%, 0%)";
-  instructionBox.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
-  instructionBox.style.borderRadius = "15px";
-  instructionBox.style.padding = "20px";
-  instructionBox.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
-  instructionBox.style.textAlign = "center";
-  instructionBox.style.fontSize = "24px";
-  instructionBox.style.color = "black";
-  instructionBox.style.lineHeight = "1.5";
-  instructionBox.innerHTML = `
-    <h2 style="margin-bottom: 15px; font-size: 32px;">あそびかた</h2>
-    <p>「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold; color: #FF5500;">ぱっ</span>」のリズムにあわせて</p>
-    <p>「<span style="font-weight: bold; color: #FF5500; font-size: 32px;">ぱっ</span>」のときにマットをふもう！</p>
-    <p style="margin-top: 15px;">タイミングがあえばポイントゲット！</p>
-    <p>だんだん速くなるよ！どこまでできるかな？</p>
-  `;
-  container.appendChild(instructionBox);
+  // キー入力またはマット入力のイベントハンドラ
+  const handleContinueInput = (event) => {
+    if (!waitingForInput) return;
 
-  // ガイドテキストの設定と点滅開始
-  guideText.style.fontSize = "32px";
-  guideText.style.top = "80%"; // 位置を下に移動（80%）
-  guideText.textContent = "奥のマットを踏んでスタート！";
-  guideText.style.display = "block";
-  guideText.style.color = "black";
+    // 1キー（奥のマット）またはスペースキーで続行
+    if (event.key === "1" || event.key === " ") {
+      waitingForInput = false;
+      document.removeEventListener("keydown", handleContinueInput);
 
-  // ゲームモードをここで終了
-  isGameMode = false;
-  blinkGuide();
+      // 続行ガイドを削除
+      container.removeChild(continueGuide);
+
+      // タイトル画面に戻る処理を続行
+      continueTitleScreen();
+    }
+  };
+
+  // WebSocketからの入力を処理するハンドラ
+  const handleWsMessage = (event) => {
+    if (!waitingForInput) return;
+
+    const data = JSON.parse(event.data);
+    if (data.type === "serial" && data.value === "1") {
+      waitingForInput = false;
+      ws.removeEventListener("message", handleWsMessage);
+
+      // 続行ガイドを削除
+      container.removeChild(continueGuide);
+
+      // タイトル画面に戻る処理を続行
+      continueTitleScreen();
+    }
+  };
+
+  // イベントリスナーを追加
+  document.addEventListener("keydown", handleContinueInput);
+  ws.addEventListener("message", handleWsMessage);
+
+  // タイトル画面に戻る処理（入力後に実行される）
+  const continueTitleScreen = async () => {
+    // 次の画面へのフェードアウト
+    const nextFadeOverlay = document.createElement("div");
+    nextFadeOverlay.style.position = "absolute";
+    nextFadeOverlay.style.width = "100%";
+    nextFadeOverlay.style.height = "100%";
+    nextFadeOverlay.style.backgroundColor = "black";
+    nextFadeOverlay.style.opacity = "0";
+    nextFadeOverlay.style.transition = "opacity 0.5s ease";
+    nextFadeOverlay.style.zIndex = "999";
+    container.appendChild(nextFadeOverlay);
+
+    nextFadeOverlay.style.opacity = "1";
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // 結果表示を削除
+    container.removeChild(resultMessage);
+
+    // スコアを小さくして上に移動
+    displayTextElement.style.fontSize = "60px";
+    displayTextElement.style.transform = "translateY(00px)";
+    displayTextElement.style.top = "5%"; // 上部に配置
+
+    // タイトルの表示
+    titleTextElement.style.display = "block"; // 既存のタイトル要素を表示
+    titleTextElement.style.opacity = "0";
+    titleTextElement.style.transition = "opacity 1s ease-out";
+    titleTextElement.style.top = "15%"; // タイトル位置を調整
+
+    // フェードイン
+    nextFadeOverlay.style.opacity = "0";
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    container.removeChild(nextFadeOverlay);
+
+    // タイトルをフェードイン
+    setTimeout(() => {
+      titleTextElement.style.opacity = "1";
+    }, 50);
+
+    // 既存の説明ボックスがあれば削除
+    const oldInstructionBox = document.getElementById("instruction-box");
+    if (oldInstructionBox) {
+      container.removeChild(oldInstructionBox);
+    }
+
+    // 説明を再表示
+    const instructionBox = document.createElement("div");
+    instructionBox.id = "instruction-box";
+    instructionBox.style.position = "absolute";
+    instructionBox.style.width = "80%";
+    instructionBox.style.maxWidth = "600px";
+    instructionBox.style.top = "40%";
+    instructionBox.style.left = "50%";
+    instructionBox.style.transform = "translate(-50%, 0%)";
+    instructionBox.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+    instructionBox.style.borderRadius = "15px";
+    instructionBox.style.padding = "20px";
+    instructionBox.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+    instructionBox.style.textAlign = "center";
+    instructionBox.style.fontSize = "24px";
+    instructionBox.style.color = "black";
+    instructionBox.style.lineHeight = "1.5";
+    instructionBox.innerHTML = `
+      <h2 style="margin-bottom: 15px; font-size: 32px;">あそびかた</h2>
+      <p>「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold;">どん</span>」「<span style="font-weight: bold; color: #FF5500;">ぱっ</span>」のリズムにあわせて</p>
+      <p>「<span style="font-weight: bold; color: #FF5500; font-size: 32px;">ぱっ</span>」のときにマットをふもう！</p>
+      <p style="margin-top: 15px;">タイミングがあえばポイントゲット！</p>
+      <p>だんだん速くなるよ！どこまでできるかな？</p>
+    `;
+    container.appendChild(instructionBox);
+
+    // ガイドテキストの設定と点滅開始
+    guideText.style.fontSize = "32px";
+    guideText.style.top = "80%"; // 位置を下に移動（80%）
+    guideText.textContent = "奥のマットを踏んでスタート！";
+    guideText.style.display = "block";
+    guideText.style.color = "black";
+
+    // ゲームモードをここで終了
+    isGameMode = false;
+    blinkGuide();
+  };
 }
 
 function updateDisplay(state) {
