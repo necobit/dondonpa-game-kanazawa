@@ -500,7 +500,7 @@ async function endGame() {
   // 評価メッセージ
   const resultMessage = document.createElement("div");
   resultMessage.style.position = "absolute";
-  resultMessage.style.width = "100%";
+  resultMessage.style.width = "80%";
   resultMessage.style.textAlign = "center";
   resultMessage.style.top = "60%";
   resultMessage.style.fontSize = "40px";
