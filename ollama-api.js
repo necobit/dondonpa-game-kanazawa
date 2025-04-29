@@ -1,9 +1,9 @@
 // Ollamaを使用してPhi-4モデルによるローカルLLM評価コメントを取得するモジュール
-const axios = require('axios');
+const axios = require("axios");
 
 // Ollamaのエンドポイント設定
-const OLLAMA_ENDPOINT = 'http://localhost:11434/api/generate';
-const MODEL_NAME = 'phi4';  // phi-4のモデル名（Ollamaにインストール済みであること）
+const OLLAMA_ENDPOINT = "http://localhost:11434/api/generate";
+const MODEL_NAME = "phi4"; // phi-4のモデル名（Ollamaにインストール済みであること）
 
 /**
  * スコアに基づいた評価コメントをOllamaのローカルLLMから取得する
@@ -14,7 +14,7 @@ async function getScoreEvaluation(score) {
   try {
     // 最高スコアを3300点として、達成率を計算
     const achievementRate = Math.round((score / 3300) * 100);
-    
+
     // プロンプトの作成
     const prompt = `
 あなたはどんどんぱっというリズムゲームの評価者です。
@@ -31,8 +31,8 @@ async function getScoreEvaluation(score) {
 評価コメントのみを出力してください。
 `;
 
-    console.log('Ollamaにリクエスト送信中...');
-    
+    console.log("Ollamaにリクエスト送信中...");
+
     // Ollamaへのリクエスト
     const response = await axios.post(OLLAMA_ENDPOINT, {
       model: MODEL_NAME,
@@ -41,22 +41,22 @@ async function getScoreEvaluation(score) {
       options: {
         temperature: 0.7,
         top_p: 0.9,
-        max_tokens: 100
-      }
+        max_tokens: 100,
+      },
     });
 
     // レスポンスから評価コメントを抽出
     const evaluation = response.data.response.trim();
-    
-    console.log('Ollama評価コメント:', evaluation);
-    
+
+    console.log("Ollama評価コメント:", evaluation);
+
     return {
       success: true,
-      evaluation
+      evaluation,
     };
   } catch (error) {
-    console.error('Ollama APIエラー:', error.message);
-    
+    console.error("Ollama APIエラー:", error.message);
+
     // エラー時のフォールバックメッセージ
     let fallbackMessage;
     if (score >= 3000) {
@@ -72,11 +72,11 @@ async function getScoreEvaluation(score) {
     } else {
       fallbackMessage = "また挑戦してみよう！コツをつかめば必ず上達します！";
     }
-    
+
     return {
       success: false,
-      message: 'Ollama APIの呼び出しに失敗しました: ' + error.message,
-      evaluation: fallbackMessage
+      message: "Ollama APIの呼び出しに失敗しました: " + error.message,
+      evaluation: fallbackMessage,
     };
   }
 }
@@ -92,11 +92,13 @@ async function getRealtimeComment(score, isPositive) {
     // プロンプトの作成
     const prompt = `
 あなたはどんどんぱっというリズムゲームの実況者です。
-プレイヤーのスコアが${isPositive ? '増加' : '減少'}しました。現在の合計スコアは${score}点です。
+プレイヤーのスコアが${
+      isPositive ? "増加" : "減少"
+    }しました。現在の合計スコアは${score}点です。
 
 以下の条件を満たす一言コメントを作成してください：
 - 15文字以内の非常に短いコメント
-- ${isPositive ? '称賛や励まし' : '残念がる'}内容
+- ${isPositive ? "称賛や励まし" : "残念がる"}内容
 - 日本語で
 - 絵文字は使わない
 - 「すごい！」「おしい！」のような感情的な表現
@@ -112,31 +114,31 @@ async function getRealtimeComment(score, isPositive) {
       options: {
         temperature: 0.8,
         top_p: 0.95,
-        max_tokens: 50
-      }
+        max_tokens: 50,
+      },
     });
 
     // レスポンスからコメントを抽出
     const comment = response.data.response.trim();
-    
+
     return {
       success: true,
-      comment: comment
+      comment: comment,
     };
   } catch (error) {
-    console.error('リアルタイムコメント生成エラー:', error.message);
-    
+    console.error("リアルタイムコメント生成エラー:", error.message);
+
     // エラー時のフォールバックコメント
-    const fallbackComments = isPositive ? 
-      ['すごい！', 'ナイス！', 'いいね！', 'グッド！', '素晴らしい！'] :
-      ['おしい！', '惜しい！', 'あらら…', 'がんばれ！', '次は当てよう！'];
-    
+    const fallbackComments = isPositive
+      ? ["すごい！", "ナイス！", "いいね！", "グッド！", "素晴らしい！"]
+      : ["おしい！", "惜しい！", "あらら…", "がんばれ！", "次は当てよう！"];
+
     const randomIndex = Math.floor(Math.random() * fallbackComments.length);
-    
+
     return {
       success: false,
-      message: 'コメント生成に失敗しました: ' + error.message,
-      comment: fallbackComments[randomIndex]
+      message: "コメント生成に失敗しました: " + error.message,
+      comment: fallbackComments[randomIndex],
     };
   }
 }
@@ -144,10 +146,10 @@ async function getRealtimeComment(score, isPositive) {
 // Ollamaが利用可能かチェックする関数
 async function checkOllamaAvailability() {
   try {
-    await axios.get('http://localhost:11434/api/tags');
+    await axios.get("http://localhost:11434/api/tags");
     return true;
   } catch (error) {
-    console.error('Ollamaサーバーに接続できません:', error.message);
+    console.error("Ollamaサーバーに接続できません:", error.message);
     return false;
   }
 }
@@ -155,5 +157,5 @@ async function checkOllamaAvailability() {
 module.exports = {
   getScoreEvaluation,
   checkOllamaAvailability,
-  getRealtimeComment
+  getRealtimeComment,
 };
