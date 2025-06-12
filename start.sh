@@ -12,44 +12,27 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-# Ollamaがインストールされているか確認
-if ! command -v ollama &> /dev/null; then
-    echo "警告: Ollamaがインストールされていません。"
-    echo "ローカルLLM機能を使用するには、Ollamaをインストールしてください。"
-    echo "https://ollama.com/からインストールできます。"
-    echo "Ollamaなしでも基本機能は動作します。"
+# MLX-LMがインストールされているか確認
+if ! command -v mlx_lm.server &> /dev/null; then
+    echo "警告: MLX-LMがインストールされていません。"
+    echo "ローカルLLM機能を使用するには、MLX-LMをインストールしてください。"
+    echo "pip install mlx-lmでインストールできます。"
+    echo "MLX-LMなしでも基本機能は動作します。"
 else
-    # Ollamaサーバーが起動しているか確認
-    if ! curl -s http://localhost:11434/api/tags &> /dev/null; then
-        echo "Ollamaサーバーを起動しています..."
-        ollama serve &> /dev/null &
-        OLLAMA_PID=$!
+    # MLX-LMサーバーが起動しているか確認
+    if ! curl -s http://localhost:8080/v1/models &> /dev/null; then
+        echo "MLX-LMサーバーを起動しています..."
+        mlx_lm.server --model mlx-community/Qwen3-30B-A3B-bf16 --port 8080 &> /dev/null &
+        MLX_LM_PID=$!
         
-        # Ollamaサーバーが起動するまで少し待つ
-        echo "Ollamaサーバーの起動を待っています..."
-        sleep 3
+        # MLX-LMサーバーが起動するまで少し待つ
+        echo "MLX-LMサーバーの起動を待っています..."
+        sleep 5
         
-        # Phi-4モデルが利用可能か確認
-        if ! ollama list | grep -q "phi4"; then
-            echo "警告: Phi-4モデルがインストールされていません。"
-            echo "ローカルLLM機能を使用するには、以下のコマンドでモデルをインストールしてください："
-            echo "ollama pull phi4"
-            echo "Phi-4モデルなしでも基本機能は動作します。"
-        else
-            echo "Phi-4モデルが利用可能です。ローカルLLM機能が有効です。"
-        fi
+        echo "Qwen3-30Bモデルがロードされました。ローカルLLM機能が有効です。"
     else
-        echo "Ollamaサーバーは既に起動しています。"
-        
-        # Phi-4モデルが利用可能か確認
-        if ! ollama list | grep -q "phi4"; then
-            echo "警告: Phi-4モデルがインストールされていません。"
-            echo "ローカルLLM機能を使用するには、以下のコマンドでモデルをインストールしてください："
-            echo "ollama pull phi4"
-            echo "Phi-4モデルなしでも基本機能は動作します。"
-        else
-            echo "Phi-4モデルが利用可能です。ローカルLLM機能が有効です。"
-        fi
+        echo "MLX-LMサーバーは既に起動しています。"
+        echo "Qwen3-30Bモデルが利用可能です。ローカルLLM機能が有効です。"
     fi
 fi
 
@@ -93,8 +76,8 @@ open http://localhost:3000
 echo "サーバーが起動しました。終了するには Ctrl+C を押してください..."
 wait $SERVER_PID
 
-# Ollamaサーバーを終了（起動した場合のみ）
-if [ -n "$OLLAMA_PID" ]; then
-    echo "Ollamaサーバーを終了しています..."
-    kill $OLLAMA_PID &> /dev/null || true
+# MLX-LMサーバーを終了（起動した場合のみ）
+if [ -n "$MLX_LM_PID" ]; then
+    echo "MLX-LMサーバーを終了しています..."
+    kill $MLX_LM_PID &> /dev/null || true
 fi

@@ -1,7 +1,7 @@
 const container = document.getElementById("game-container");
 const displayText = document.getElementById("display-text");
 const gameStatus = document.getElementById("game-status");
-const ws = new WebSocket("ws://localhost:8080");
+const ws = new WebSocket("ws://localhost:8081"); // MLX-LMサーバーとの競合を避けるためポートを変更
 
 // タイトル用のテキスト要素を追加
 const titleTextElement = document.createElement("div");
@@ -98,7 +98,9 @@ const ANIMATION_STATES = {
 };
 
 let isGameActive = false;
+let isFinalRound = false; // 最終ラウンドかどうかのフラグ
 let isGameMode = false;
+let isShowingResults = false; // スコア結果表示中かどうかのフラグ
 let score = 0;
 let currentRound = 0;
 let timingWindow = false;
@@ -134,8 +136,104 @@ function blinkGuide() {
   }
 }
 
+// コメント生成完了を確認してタイトル表示
+async function checkCommentsGenerationAndShowTitle() {
+  // コメント生成中の表示
+  showLoadingScreen();
+  
+  try {
+    // コメント生成状態をポーリング
+    while (true) {
+      const response = await fetch('/api/comments-status');
+      const status = await response.json();
+      
+      if (status.isCompleted) {
+        console.log('コメント生成完了、タイトル表示を開始');
+        break;
+      }
+      
+      // 1秒待機
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch (error) {
+    console.error('コメント生成状態確認エラー:', error);
+    // エラー時はそのまま続行
+  }
+  
+  // タイトル画面を表示
+  showTitleScreen();
+}
+
+// コメント生成中の表示
+function showLoadingScreen() {
+  // タイトルの表示
+  titleTextElement.textContent = "どんどんぱっ";
+  titleTextElement.style.fontSize = "120px";
+  titleTextElement.style.fontWeight = "bold";
+  titleTextElement.style.marginBottom = "20px";
+  titleTextElement.style.display = "block";
+  titleTextElement.style.opacity = "1";
+  titleTextElement.style.top = "20%";
+
+  // 既存の説明ボックスがあれば削除
+  const oldInstructionBox = document.getElementById("instruction-box");
+  if (oldInstructionBox) {
+    container.removeChild(oldInstructionBox);
+  }
+
+  // ローディングメッセージの表示
+  const loadingBox = document.createElement("div");
+  loadingBox.id = "loading-box";
+  loadingBox.style.position = "absolute";
+  loadingBox.style.width = "80%";
+  loadingBox.style.maxWidth = "600px";
+  loadingBox.style.top = "45%";
+  loadingBox.style.left = "50%";
+  loadingBox.style.transform = "translate(-50%, 0%)";
+  loadingBox.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+  loadingBox.style.borderRadius = "15px";
+  loadingBox.style.padding = "30px";
+  loadingBox.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+  loadingBox.style.textAlign = "center";
+  loadingBox.style.fontSize = "32px";
+  loadingBox.style.color = "black";
+  loadingBox.style.lineHeight = "1.5";
+  loadingBox.innerHTML = `
+    <h2 style="margin-bottom: 20px; font-size: 40px; color: #FF5500;">コメント生成中です</h2>
+    <p style="font-size: 24px;">しばらくお待ちください...</p>
+    <div style="margin-top: 20px; font-size: 48px; animation: pulse 1.5s infinite;">✨</div>
+  `;
+  
+  // CSSアニメーションを追加
+  if (!document.getElementById('loading-style')) {
+    const style = document.createElement('style');
+    style.id = 'loading-style';
+    style.textContent = `
+      @keyframes pulse {
+        0% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.1); }
+        100% { opacity: 0.4; transform: scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  container.appendChild(loadingBox);
+
+  container.style.backgroundColor = "yellow";
+  displayTextElement.style.color = "black";
+  displayTextElement.textContent = "";
+  scoreDisplay.style.display = "none";
+  guideText.style.display = "none";
+}
+
 // タイトル画面の表示
 function showTitleScreen() {
+  // ローディングボックスを削除
+  const loadingBox = document.getElementById("loading-box");
+  if (loadingBox) {
+    container.removeChild(loadingBox);
+  }
   // タイトルの表示
   titleTextElement.textContent = "どんどんぱっ";
   titleTextElement.style.fontSize = "160px";
@@ -320,7 +418,7 @@ function showParticles() {
 }
 
 async function startGameMode() {
-  if (isGameMode) return;
+  if (isGameMode || isShowingResults) return; // ゲーム中またはスコア表示中は開始しない
 
   // ゲームモードの初期化
   isGameMode = true;
@@ -328,6 +426,8 @@ async function startGameMode() {
   score = 0;
   currentRound = 0;
   timingWindow = false;
+  isFinalRound = false;
+  isShowingResults = false; // 念のためリセット
   
   // ゲームタイミングの初期化
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
@@ -484,6 +584,12 @@ async function playGameAnimation() {
 
     await new Promise((resolve) => setTimeout(resolve, 100));
     timingWindow = false;
+    
+    // 最終ラウンドの場合、ミス判定を無効化
+    if (isFinalRound) {
+      console.log("最終ラウンドのためミス判定を無効化");
+      isGameMode = false;
+    }
 
     await new Promise((resolve) =>
       setTimeout(resolve, gameTimings.pa / 2 - 100)
@@ -505,11 +611,20 @@ async function playGameAnimation() {
       await endGame();
       break;
     }
+    
+    // 次のラウンドが最終ラウンドかチェック
+    const nextGameTimings = {
+      don1: gameTimings.don1 * 0.95,
+      don2: gameTimings.don2 * 0.95,
+      pa: gameTimings.pa * 0.95
+    };
+    isFinalRound = nextGameTimings.don1 <= 100;
   }
 }
 
 async function endGame() {
   // isGameMode = false; // 位置を変更
+  isShowingResults = true; // スコア結果表示開始
 
   // フェードアウトエフェクト
   const fadeOverlay = document.createElement("div");
@@ -765,6 +880,7 @@ async function endGame() {
 
     // ゲームモードをここで終了
     isGameMode = false;
+    isShowingResults = false; // スコア結果表示終了
     blinkGuide();
   };
 }
@@ -805,7 +921,7 @@ function updateGameState(value) {
 
 ws.onopen = () => {
   console.log("WebSocket接続完了");
-  showTitleScreen();
+  checkCommentsGenerationAndShowTitle();
 };
 
 // WebSocketメッセージハンドラ
