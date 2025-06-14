@@ -15,21 +15,12 @@ async function getScoreEvaluation(score) {
     // 最高スコアを3300点として、達成率を計算
     const achievementRate = Math.round((score / 3300) * 100);
 
-    // プロンプトの作成
-    const systemPrompt =
-      "あなたはどんどんぱっというリズムゲームの評価者です。プレイヤーに対して前向きで励ましになる評価コメントを作成してください。";
+    // プロンプトの作成（シンプルにして確実な応答を得る）
+    const systemPrompt = "リズムゲームの評価コメントを作成してください。";
 
-    const userPrompt = `プレイヤーは「どん」「どん」「ぱっ」のリズムに合わせてマットを踏むゲームをプレイしました。
-プレイヤーの最終スコアは${score}点です（理論上の最高点は3300点で、達成率は約${achievementRate}%）。
+    const userPrompt = `スコア: ${score}点（最高3300点）
 
-プレイヤーに対して、以下の条件を満たす前向きな評価コメントを1つだけ作成してください：
-- 50文字以内で簡潔に
-- 励ましになる前向きな内容
-- スコアに応じた適切な評価（高得点なら称賛、低得点でも励ましを）
-- 日本語で
-- 絵文字は使わない
-
-評価コメントのみを出力してください。`;
+50文字以内の評価コメントを1つ作成してください。`;
 
     console.log("MLX-LMにリクエスト送信中...");
 
@@ -56,14 +47,52 @@ async function getScoreEvaluation(score) {
     );
 
     // レスポンスから評価コメントを抽出
-    let evaluation = response.data.choices[0].message.content.trim();
-
-    // <think>タグを除去
-    evaluation = evaluation.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-    // 念のため<think>タグが閉じられていない場合も対応
-    evaluation = evaluation.replace(/<think>[\s\S]*/g, "").trim();
+    console.log("MLX-LMレスポンス全体:", JSON.stringify(response.data, null, 2));
+    
+    let evaluation = "";
+    if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
+      evaluation = response.data.choices[0].message.content || "";
+      evaluation = evaluation.trim();
+      
+      // <think>タグを除去
+      evaluation = evaluation.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+      // 念のため<think>タグが閉じられていない場合も対応
+      evaluation = evaluation.replace(/<think>[\s\S]*/g, "").trim();
+      
+      // 空の場合は警告
+      if (!evaluation) {
+        console.warn("MLX-LMからの評価コメントが空です");
+      }
+    } else {
+      console.error("予期しないレスポンス形式:", response.data);
+    }
 
     console.log("MLX-LM評価コメント:", evaluation);
+
+    // 評価コメントが空の場合はフォールバックを使用
+    if (!evaluation) {
+      console.log("評価コメントが空のため、フォールバックメッセージを使用");
+      let fallbackMessage;
+      if (score >= 3000) {
+        fallbackMessage = "神レベル！素晴らしい集中力です！";
+      } else if (score >= 2000) {
+        fallbackMessage = "めっちゃすごい！リズム感抜群です！";
+      } else if (score >= 1500) {
+        fallbackMessage = "すごい！かなりの実力者ですね！";
+      } else if (score >= 1000) {
+        fallbackMessage = "上手だね！リズムをよく理解しています！";
+      } else if (score >= 200) {
+        fallbackMessage = "なかなかいいね！次はもっと高得点を狙おう！";
+      } else {
+        fallbackMessage = "また挑戦してみよう！コツをつかめば必ず上達します！";
+      }
+      
+      return {
+        success: false,
+        message: "MLX-LMから空の評価コメントが返されました",
+        evaluation: fallbackMessage,
+      };
+    }
 
     return {
       success: true,

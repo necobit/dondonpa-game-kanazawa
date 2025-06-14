@@ -750,11 +750,13 @@ async function endGame() {
     });
 
     const data = await response.json();
+    console.log("評価APIレスポンス:", data);
 
-    if (data.success && data.evaluation) {
+    if (data.evaluation && data.evaluation.trim() !== "") {
       resultMessage.textContent = data.evaluation;
     } else {
-      // APIエラー時はデフォルトのメッセージを表示
+      // 評価コメントが空またはAPIエラー時はデフォルトのメッセージを表示
+      console.warn("評価コメントが空のため、デフォルトメッセージを使用");
       if (score >= 3000) {
         resultMessage.textContent = "神";
       } else if (score >= 2000) {
