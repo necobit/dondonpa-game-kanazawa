@@ -2,6 +2,7 @@ const express = require("express");
 const { SerialPort } = require("serialport");
 const WebSocket = require("ws");
 const path = require("path");
+const midi = require("midi");
 const { getScoreEvaluation, checkMlxLmAvailability, getRealtimeComment, generateBulkComments } = require("./mlx-lm-api");
 
 const app = express();
@@ -101,6 +102,54 @@ app.get("/api/comments-status", (req, res) => {
 // シリアルポートの設定
 let serialPort = null;
 
+// MIDI出力の設定
+let midiOutput = null;
+let selectedMidiPort = -1;
+
+// MIDI初期化関数
+const initMIDI = () => {
+  try {
+    midiOutput = new midi.Output();
+    const portCount = midiOutput.getPortCount();
+    
+    if (portCount === 0) {
+      console.log("MIDIデバイスが見つかりません。MIDI機能は無効化されます。");
+      midiOutput = null;
+      return;
+    }
+    
+    console.log("\n利用可能なMIDIデバイス:");
+    for (let i = 0; i < portCount; i++) {
+      console.log(`${i}: ${midiOutput.getPortName(i)}`);
+    }
+    
+    // 最初のポートを自動選択（必要に応じて手動選択機能を追加可能）
+    selectedMidiPort = 0;
+    midiOutput.openPort(selectedMidiPort);
+    console.log(`MIDIデバイス "${midiOutput.getPortName(selectedMidiPort)}" に接続しました。`);
+    
+    return true;
+  } catch (error) {
+    console.error("MIDI初期化エラー:", error.message);
+    console.log("MIDI機能は無効化されます。");
+    midiOutput = null;
+    return false;
+  }
+};
+
+// MIDI送信関数
+const sendMIDI = (status, note, velocity) => {
+  if (!midiOutput) return;
+  
+  try {
+    const message = [status, note, velocity];
+    midiOutput.sendMessage(message);
+    console.log(`MIDI送信: ${status === 0x90 ? 'Note On' : 'Note Off'} Ch1 Note${note} Vel${velocity}`);
+  } catch (error) {
+    console.error("MIDI送信エラー:", error.message);
+  }
+};
+
 // シリアルポートの初期化を非同期で行う
 const initSerialPort = async () => {
   try {
@@ -170,6 +219,28 @@ wss.on("connection", (ws) => {
           client.send(JSON.stringify({ type: "serial", value: data.value }));
         }
       });
+    } else if (data.type === "midi") {
+      // MIDI送信要求を処理
+      const { action, note, velocity, delay } = data;
+      
+      if (action === "noteOn") {
+        sendMIDI(0x90, note, velocity || 127); // Note On, Channel 1
+      } else if (action === "noteOff") {
+        if (delay && delay > 0) {
+          // 遅延後にNote Offを送信
+          setTimeout(() => {
+            sendMIDI(0x80, note, velocity || 64);
+          }, delay);
+        } else {
+          sendMIDI(0x80, note, velocity || 64); // Note Off, Channel 1
+        }
+      } else if (action === "gameEnd") {
+        // ゲーム終了時のMIDI送信 (Note 48)
+        sendMIDI(0x90, 48, 127); // Note On
+        setTimeout(() => {
+          sendMIDI(0x80, 48, 64); // Note Off after 100ms
+        }, 100);
+      }
     }
   });
 });
@@ -183,6 +254,9 @@ const server = app.listen(port, async () => {
 
   // シリアルポートの初期化を試みる
   await initSerialPort();
+  
+  // MIDI初期化を実行
+  initMIDI();
   
   // MLX-LMが利用可能な場合、コメントを事前生成
   const mlxLmAvailable = await checkMlxLmAvailability();

@@ -110,6 +110,32 @@ let gameTimings = {
   pa: 1000,
 };
 
+// MIDI関連の変数
+let currentMidiNote = 60; // 開始ノート番号 (C4)
+
+// MIDI送信関数
+function sendMIDI(action, note, velocity, delay = 0) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "midi",
+      action: action,
+      note: note,
+      velocity: velocity,
+      delay: delay
+    }));
+  }
+}
+
+// 次のMIDIノート番号を取得する関数
+function getNextMidiNote() {
+  const note = currentMidiNote;
+  currentMidiNote++;
+  if (currentMidiNote > 63) {
+    currentMidiNote = 60; // Note 63の次は60に戻る
+  }
+  return note;
+}
+
 // パーティクルの色とサイズのバリエーション
 const PARTICLE_COLORS = [
   "#FFB700", // 濃いゴールド
@@ -428,6 +454,7 @@ async function startGameMode() {
   timingWindow = false;
   isFinalRound = false;
   isShowingResults = false; // 念のためリセット
+  currentMidiNote = 60; // MIDIノート番号をリセット
   
   // ゲームタイミングの初期化
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
@@ -523,6 +550,10 @@ async function playGameAnimation() {
     let startTime = Date.now();
     let cycleStart = Date.now();
     displayTextElement.style.fontSize = "200px";
+    
+    // このラウンドで使用するMIDIノート番号を取得
+    const midiNote = getNextMidiNote();
+    console.log(`MIDI Note: ${midiNote} を使用`);
 
     // First どん (500msec)
     timingWindow = false;
@@ -545,6 +576,14 @@ async function playGameAnimation() {
 
     updateDisplay(ANIMATION_STATES.DON1);
     ws.send(JSON.stringify({ type: "don", duration: highDuration1 }));
+    
+    // MIDI Note On for first "don"
+    sendMIDI("noteOn", midiNote, 127);
+    // Schedule Note Off after half of gameTimings duration
+    setTimeout(() => {
+      sendMIDI("noteOff", midiNote, 64);
+    }, gameTimings.don1 / 2);
+    
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
     clearDisplay();
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
@@ -568,6 +607,14 @@ async function playGameAnimation() {
 
     updateDisplay(ANIMATION_STATES.DON2);
     ws.send(JSON.stringify({ type: "don", duration: highDuration2 }));
+    
+    // MIDI Note On for second "don"
+    sendMIDI("noteOn", midiNote, 127);
+    // Schedule Note Off after half of gameTimings duration
+    setTimeout(() => {
+      sendMIDI("noteOff", midiNote, 64);
+    }, gameTimings.don2 / 2);
+    
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
     clearDisplay();
     await new Promise((resolve) =>
@@ -581,6 +628,13 @@ async function playGameAnimation() {
     // ぱっ (1000msec)
     updateDisplay(ANIMATION_STATES.PA);
     // ws.send(JSON.stringify({ type: "pa" }));  //「ぱっ」はユーザーが叩くためコメントアウト
+    
+    // MIDI Note On for "pa"
+    sendMIDI("noteOn", midiNote, 127);
+    // Schedule Note Off after half of gameTimings duration
+    setTimeout(() => {
+      sendMIDI("noteOff", midiNote, 64);
+    }, gameTimings.pa / 2);
 
     await new Promise((resolve) => setTimeout(resolve, 100));
     timingWindow = false;
@@ -878,6 +932,9 @@ async function endGame() {
     guideText.style.display = "block";
     guideText.style.color = "black";
 
+    // ゲーム終了時のMIDI送信
+    sendMIDI("gameEnd", 48, 127);
+    
     // ゲームモードをここで終了
     isGameMode = false;
     isShowingResults = false; // スコア結果表示終了
