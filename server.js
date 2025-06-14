@@ -3,6 +3,7 @@ const { SerialPort } = require("serialport");
 const WebSocket = require("ws");
 const path = require("path");
 const midi = require("midi");
+const fs = require("fs");
 const { getScoreEvaluation, checkMlxLmAvailability, getRealtimeComment, generateBulkComments } = require("./mlx-lm-api");
 
 const app = express();
@@ -19,6 +20,36 @@ let commentsGenerationStatus = {
     negative: 0
   }
 };
+
+// コメントファイルの読み込み
+function loadCommentsFromFile() {
+  const commentsFilePath = path.join(__dirname, 'game-comments.json');
+  
+  try {
+    if (fs.existsSync(commentsFilePath)) {
+      const fileContent = fs.readFileSync(commentsFilePath, 'utf8');
+      const commentsData = JSON.parse(fileContent);
+      
+      positiveComments = commentsData.positive || [];
+      negativeComments = commentsData.negative || [];
+      
+      commentsGenerationStatus.progress.positive = positiveComments.length;
+      commentsGenerationStatus.progress.negative = negativeComments.length;
+      commentsGenerationStatus.isCompleted = true;
+      
+      console.log(`コメントファイルから読み込み完了:`);
+      console.log(`- 加点時コメント: ${positiveComments.length}個`);
+      console.log(`- 減点時コメント: ${negativeComments.length}個`);
+      console.log(`- 生成日時: ${commentsData.generatedAt}`);
+      
+      return true;
+    }
+  } catch (error) {
+    console.error('コメントファイルの読み込みエラー:', error);
+  }
+  
+  return false;
+}
 
 // 静的ファイルの提供
 app.use(express.static(path.join(__dirname)));
@@ -258,50 +289,19 @@ const server = app.listen(port, async () => {
   // MIDI初期化を実行
   initMIDI();
   
-  // MLX-LMが利用可能な場合、コメントを事前生成
-  const mlxLmAvailable = await checkMlxLmAvailability();
-  if (mlxLmAvailable) {
-    commentsGenerationStatus.isGenerating = true;
-    console.log("ゲーム用コメントを事前生成しています...");
+  // コメントファイルから読み込みを試みる
+  const commentsLoaded = loadCommentsFromFile();
+  
+  if (!commentsLoaded) {
+    console.log("\nコメントファイルが見つかりません。");
+    console.log("以下のコマンドでコメントを生成してください:");
+    console.log("  node generate-comments.js\n");
     
-    try {
-      // 加点コメントを生成
-      console.log("加点時コメントを生成中...");
-      const positive = await generateBulkComments(true, 50);
-      positiveComments = positive;
-      commentsGenerationStatus.progress.positive = positive.length;
-      console.log(`加点時コメント: ${positiveComments.length}個完了`);
-      
-      // 減点コメントを生成
-      console.log("減点時コメントを生成中...");
-      const negative = await generateBulkComments(false, 50);
-      negativeComments = negative;
-      commentsGenerationStatus.progress.negative = negative.length;
-      console.log(`減点時コメント: ${negativeComments.length}個完了`);
-      
-      commentsGenerationStatus.isGenerating = false;
-      commentsGenerationStatus.isCompleted = true;
-      console.log("コメントの事前生成が完了しました。");
-      
-      // 生成されたコメントをターミナルに表示
-      console.log("\n=== 生成された加点時コメント ===");
-      positiveComments.forEach((comment, index) => {
-        console.log(`${index + 1}: ${comment}`);
-      });
-      
-      console.log("\n=== 生成された減点時コメント ===");
-      negativeComments.forEach((comment, index) => {
-        console.log(`${index + 1}: ${comment}`);
-      });
-      console.log("=".repeat(40));
-    } catch (error) {
-      console.error("コメントの事前生成に失敗しました:", error);
-      commentsGenerationStatus.isGenerating = false;
-      commentsGenerationStatus.isCompleted = true;
-      console.log("フォールバックコメントを使用します。");
-    }
-  } else {
+    // フォールバックコメントを設定
+    positiveComments = ['すごい！', 'ナイス！', 'いいね！', 'グッド！', '素晴らしい！'];
+    negativeComments = ['おしい！', '惜しい！', 'あらら…', 'がんばれ！', '次は当てよう！'];
     commentsGenerationStatus.isCompleted = true;
-    console.log("MLX-LMが利用できないため、フォールバックコメントを使用します。");
+    
+    console.log("フォールバックコメントを使用します。");
   }
 });
