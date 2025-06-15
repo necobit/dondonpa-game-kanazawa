@@ -111,18 +111,20 @@ let gameTimings = {
 };
 
 // MIDI関連の変数
-let currentMidiNote = 60; // 開始ノート番号 (C4)
+let currentMidiNote = 65; // 開始ノート番号 (F4)
 
 // MIDI送信関数
 function sendMIDI(action, note, velocity, delay = 0) {
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: "midi",
-      action: action,
-      note: note,
-      velocity: velocity,
-      delay: delay
-    }));
+    ws.send(
+      JSON.stringify({
+        type: "midi",
+        action: action,
+        note: note,
+        velocity: velocity,
+        delay: delay,
+      })
+    );
   }
 }
 
@@ -130,8 +132,8 @@ function sendMIDI(action, note, velocity, delay = 0) {
 function getNextMidiNote() {
   const note = currentMidiNote;
   currentMidiNote++;
-  if (currentMidiNote > 63) {
-    currentMidiNote = 60; // Note 63の次は60に戻る
+  if (currentMidiNote > 68) {
+    currentMidiNote = 65; // Note 63の次は60に戻る
   }
   return note;
 }
@@ -166,26 +168,26 @@ function blinkGuide() {
 async function checkCommentsGenerationAndShowTitle() {
   // コメント生成中の表示
   showLoadingScreen();
-  
+
   try {
     // コメント生成状態をポーリング
     while (true) {
-      const response = await fetch('/api/comments-status');
+      const response = await fetch("/api/comments-status");
       const status = await response.json();
-      
+
       if (status.isCompleted) {
-        console.log('コメント生成完了、タイトル表示を開始');
+        console.log("コメント生成完了、タイトル表示を開始");
         break;
       }
-      
+
       // 1秒待機
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   } catch (error) {
-    console.error('コメント生成状態確認エラー:', error);
+    console.error("コメント生成状態確認エラー:", error);
     // エラー時はそのまま続行
   }
-  
+
   // タイトル画面を表示
   showTitleScreen();
 }
@@ -229,11 +231,11 @@ function showLoadingScreen() {
     <p style="font-size: 24px;">しばらくお待ちください...</p>
     <div style="margin-top: 20px; font-size: 48px; animation: pulse 1.5s infinite;">✨</div>
   `;
-  
+
   // CSSアニメーションを追加
-  if (!document.getElementById('loading-style')) {
-    const style = document.createElement('style');
-    style.id = 'loading-style';
+  if (!document.getElementById("loading-style")) {
+    const style = document.createElement("style");
+    style.id = "loading-style";
     style.textContent = `
       @keyframes pulse {
         0% { opacity: 0.4; transform: scale(1); }
@@ -243,7 +245,7 @@ function showLoadingScreen() {
     `;
     document.head.appendChild(style);
   }
-  
+
   container.appendChild(loadingBox);
 
   container.style.backgroundColor = "yellow";
@@ -341,7 +343,7 @@ function showScoreEffect(score, isPositive = true) {
       scoreEffectContainer.removeChild(effect);
     }
   }, 1000);
-  
+
   // リアルタイムコメントの取得と表示
   fetchRealtimeComment(score, isPositive);
 }
@@ -349,15 +351,18 @@ function showScoreEffect(score, isPositive = true) {
 // リアルタイムコメントを取得して表示する関数
 async function fetchRealtimeComment(score, isPositive) {
   try {
-    const response = await fetch(`/api/realtime-comment?score=${score}&isPositive=${isPositive}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    
+    const response = await fetch(
+      `/api/realtime-comment?score=${score}&isPositive=${isPositive}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
     const data = await response.json();
-    
+
     if (data.success || data.comment) {
       showComment(data.comment);
     }
@@ -371,13 +376,13 @@ async function fetchRealtimeComment(score, isPositive) {
 function showComment(comment) {
   // 既存のコメントをフェードアウト
   commentDisplay.style.opacity = "0";
-  
+
   // 新しいコメントを設定して表示
   setTimeout(() => {
     commentDisplay.textContent = comment;
     commentDisplay.style.display = "block";
     commentDisplay.style.opacity = "1";
-    
+
     // 3秒後にフェードアウト
     setTimeout(() => {
       commentDisplay.style.opacity = "0";
@@ -454,16 +459,16 @@ async function startGameMode() {
   timingWindow = false;
   isFinalRound = false;
   isShowingResults = false; // 念のためリセット
-  currentMidiNote = 60; // MIDIノート番号をリセット
-  
+  currentMidiNote = 65; // MIDIノート番号をリセット
+
   // ゲームタイミングの初期化
   gameTimings = { don1: 500, don2: 500, pa: 1000 };
-  
+
   // スコア表示の初期化と表示
   scoreDisplay.textContent = "Score: 0";
   scoreDisplay.style.display = "block";
   commentDisplay.style.display = "none"; // コメント表示を初期化
-  
+
   guideText.style.display = "none";
   displayTextElement.textContent = "";
 
@@ -550,7 +555,7 @@ async function playGameAnimation() {
     let startTime = Date.now();
     let cycleStart = Date.now();
     displayTextElement.style.fontSize = "200px";
-    
+
     // このラウンドで使用するMIDIノート番号を取得
     const midiNote = getNextMidiNote();
     console.log(`MIDI Note: ${midiNote} を使用`);
@@ -576,14 +581,14 @@ async function playGameAnimation() {
 
     updateDisplay(ANIMATION_STATES.DON1);
     ws.send(JSON.stringify({ type: "don", duration: highDuration1 }));
-    
+
     // MIDI Note On for first "don"
     sendMIDI("noteOn", midiNote, 127);
     // Schedule Note Off after half of gameTimings duration
     setTimeout(() => {
       sendMIDI("noteOff", midiNote, 64);
     }, gameTimings.don1 / 2);
-    
+
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
     clearDisplay();
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don1 / 2));
@@ -607,14 +612,14 @@ async function playGameAnimation() {
 
     updateDisplay(ANIMATION_STATES.DON2);
     ws.send(JSON.stringify({ type: "don", duration: highDuration2 }));
-    
+
     // MIDI Note On for second "don"
     sendMIDI("noteOn", midiNote, 127);
     // Schedule Note Off after half of gameTimings duration
     setTimeout(() => {
       sendMIDI("noteOff", midiNote, 64);
     }, gameTimings.don2 / 2);
-    
+
     await new Promise((resolve) => setTimeout(resolve, gameTimings.don2 / 2));
     clearDisplay();
     await new Promise((resolve) =>
@@ -628,7 +633,7 @@ async function playGameAnimation() {
     // ぱっ (1000msec)
     updateDisplay(ANIMATION_STATES.PA);
     // ws.send(JSON.stringify({ type: "pa" }));  //「ぱっ」はユーザーが叩くためコメントアウト
-    
+
     // MIDI Note On for "pa"
     sendMIDI("noteOn", midiNote, 127);
     // Schedule Note Off after half of gameTimings duration
@@ -638,7 +643,7 @@ async function playGameAnimation() {
 
     await new Promise((resolve) => setTimeout(resolve, 100));
     timingWindow = false;
-    
+
     // 最終ラウンドの場合、ミス判定を無効化
     if (isFinalRound) {
       console.log("最終ラウンドのためミス判定を無効化");
@@ -665,12 +670,12 @@ async function playGameAnimation() {
       await endGame();
       break;
     }
-    
+
     // 次のラウンドが最終ラウンドかチェック
     const nextGameTimings = {
       don1: gameTimings.don1 * 0.95,
       don2: gameTimings.don2 * 0.95,
-      pa: gameTimings.pa * 0.95
+      pa: gameTimings.pa * 0.95,
     };
     isFinalRound = nextGameTimings.don1 <= 100;
   }
@@ -936,7 +941,7 @@ async function endGame() {
 
     // ゲーム終了時のMIDI送信
     sendMIDI("gameEnd", 48, 127);
-    
+
     // ゲームモードをここで終了
     isGameMode = false;
     isShowingResults = false; // スコア結果表示終了

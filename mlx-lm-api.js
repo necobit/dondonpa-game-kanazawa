@@ -2,8 +2,23 @@
 const axios = require("axios");
 
 // MLX-LMのエンドポイント設定
-const MLX_LM_ENDPOINT = "http://localhost:8080/v1/chat/completions";
 const MODEL_NAME = "mlx-community/Qwen3-30B-A3B-bf16";
+
+// axios インスタンスを作成して接続を再利用
+const axiosInstance = axios.create({
+  baseURL: "http://localhost:8080",
+  timeout: 60000,
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    Connection: "keep-alive",
+  },
+  httpAgent: new (require("http").Agent)({
+    keepAlive: true,
+    keepAliveMsecs: 1000,
+    maxSockets: 10,
+  }),
+});
 
 /**
  * スコアに基づいた評価コメントをMLX-LMのローカルLLMから取得する
@@ -11,35 +26,43 @@ const MODEL_NAME = "mlx-community/Qwen3-30B-A3B-bf16";
  * @returns {Promise<Object>} - 評価結果
  */
 async function getScoreEvaluation(score) {
-  try {
-    // 最高スコアを3300点として、達成率を計算
-    const achievementRate = Math.round((score / 3300) * 100);
+  // リトライ処理のための関数
+  const makeRequestWithRetry = async (retryCount = 0) => {
+    try {
+      // 最高スコアを3300点として、達成率を計算
+      const achievementRate = Math.round((score / 3300) * 100);
 
-    // プロンプトの作成（より具体的な指示）
-    let evaluationLevel = "";
-    if (score >= 3000) {
-      evaluationLevel = "素晴らしい";
-    } else if (score >= 2000) {
-      evaluationLevel = "とても良い";
-    } else if (score >= 1000) {
-      evaluationLevel = "良い";
-    } else if (score >= 500) {
-      evaluationLevel = "まあまあ";
-    } else {
-      evaluationLevel = "頑張ろう";
-    }
+      // プロンプトの作成（より具体的な指示）
+      let evaluationLevel = "";
+      if (score >= 3000) {
+        evaluationLevel = "素晴らしい";
+      } else if (score >= 2000) {
+        evaluationLevel = "とても良い";
+      } else if (score >= 1000) {
+        evaluationLevel = "良い";
+      } else if (score >= 500) {
+        evaluationLevel = "まあまあ";
+      } else {
+        evaluationLevel = "頑張ろう";
+      }
 
-    const systemPrompt = "短い評価コメントを出力してください。";
+      const systemPrompt =
+        "短いネガティブではない評価コメントを出力してください。</nothink>";
 
-    const userPrompt = `スコア${score}点の評価：「${evaluationLevel}」
+      const userPrompt = `スコア${score}点の評価：「${evaluationLevel}」
 一言コメント（例：素晴らしい成績です）：`;
 
-    console.log("MLX-LMにリクエスト送信中...");
+      console.log(`MLX-LMにリクエスト送信中... (試行 ${retryCount + 1}/3)`);
 
-    // MLX-LMへのリクエスト（OpenAI API互換形式）
-    const response = await axios.post(
-      MLX_LM_ENDPOINT,
-      {
+      // リトライ時は待機時間を設ける
+      if (retryCount > 0) {
+        const waitTime = retryCount * 2000; // 2秒、4秒と増やしていく
+        console.log(`${waitTime}ms 待機中...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      }
+
+      // MLX-LMへのリクエスト（axios インスタンスを使用）
+      const response = await axiosInstance.post("/v1/chat/completions", {
         model: MODEL_NAME,
         messages: [
           { role: "system", content: systemPrompt },
@@ -49,21 +72,31 @@ async function getScoreEvaluation(score) {
         top_p: 0.9,
         max_tokens: 100,
         stream: false,
-      },
-      {
-        timeout: 30000, // 30秒のタイムアウト
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+      });
+
+      return response;
+    } catch (error) {
+      if (error.code === "ECONNRESET" || error.message.includes("socket hang up")) {
+        if (retryCount < 2) {
+          console.log(`接続エラーが発生しました。リトライします... (${error.message})`);
+          return makeRequestWithRetry(retryCount + 1);
+        }
       }
-    );
+      throw error;
+    }
+  };
+
+  try {
+    const response = await makeRequestWithRetry();
 
     // レスポンスから評価コメントを抽出
-    console.log("MLX-LMレスポンス全体:", JSON.stringify(response.data, null, 2));
-    
+    console.log(
+      "MLX-LMレスポンス全体:",
+      JSON.stringify(response.data, null, 2)
+    );
+
     let evaluation = "";
-    
+
     // レスポンスの構造を詳しくチェック
     if (!response.data) {
       console.error("response.dataが存在しません");
@@ -81,29 +114,29 @@ async function getScoreEvaluation(score) {
       console.log("生のコンテンツ:", rawContent);
       console.log("コンテンツの型:", typeof rawContent);
       console.log("コンテンツの長さ:", rawContent.length);
-      
+
       evaluation = rawContent.toString().trim();
-      
+
       // <think>タグを除去
       const beforeThinkRemoval = evaluation;
       evaluation = evaluation.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
       if (beforeThinkRemoval !== evaluation) {
         console.log("<think>タグを除去しました");
       }
-      
+
       // 念のため<think>タグが閉じられていない場合も対応
       const beforeUnclosedThinkRemoval = evaluation;
       evaluation = evaluation.replace(/<think>[\s\S]*/g, "").trim();
       if (beforeUnclosedThinkRemoval !== evaluation) {
         console.log("閉じられていない<think>タグを除去しました");
       }
-      
+
       // その他の特殊文字を除去
       evaluation = evaluation.replace(/[\x00-\x1F\x7F-\x9F]/g, "").trim();
-      
+
       console.log("最終的な評価コメント:", evaluation);
       console.log("評価コメントの長さ:", evaluation.length);
-      
+
       // 空の場合は警告
       if (!evaluation || evaluation.length === 0) {
         console.warn("MLX-LMからの評価コメントが空です");
@@ -129,7 +162,7 @@ async function getScoreEvaluation(score) {
       } else {
         fallbackMessage = "また挑戦してみよう！コツをつかめば必ず上達します！";
       }
-      
+
       return {
         success: false,
         message: "MLX-LMから空の評価コメントが返されました",
@@ -200,27 +233,17 @@ async function getRealtimeComment(score, isPositive) {
 
 コメントのみを出力してください。`;
 
-    // MLX-LMへのリクエスト
-    const response = await axios.post(
-      MLX_LM_ENDPOINT,
-      {
-        model: MODEL_NAME,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-        top_p: 0.95,
-        max_tokens: 50,
-      },
-      {
-        timeout: 20000, // 20秒のタイムアウト
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      }
-    );
+    // MLX-LMへのリクエスト（axios インスタンスを使用）
+    const response = await axiosInstance.post("/v1/chat/completions", {
+      model: MODEL_NAME,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.8,
+      top_p: 0.95,
+      max_tokens: 50,
+    });
 
     // レスポンスからコメントを抽出
     let comment = response.data.choices[0].message.content.trim();
@@ -262,25 +285,32 @@ async function getRealtimeComment(score, isPositive) {
 async function checkMlxLmAvailability() {
   try {
     console.log("MLX-LMサーバー（http://localhost:8080）への接続を確認中...");
-    const response = await axios.get("http://localhost:8080/v1/models", {
-      timeout: 3000,
-      headers: {
-        Accept: "application/json",
-      },
+    const response = await axiosInstance.get("/v1/models", {
+      timeout: 5000,
     });
-    console.log("MLX-LM利用可能モデル:", JSON.stringify(response.data, null, 2));
-    
+    console.log(
+      "MLX-LM利用可能モデル:",
+      JSON.stringify(response.data, null, 2)
+    );
+
     // モデルが実際に利用可能か確認
-    if (response.data && response.data.data && Array.isArray(response.data.data)) {
-      const models = response.data.data.map(m => m.id || m.name);
+    if (
+      response.data &&
+      response.data.data &&
+      Array.isArray(response.data.data)
+    ) {
+      const models = response.data.data.map((m) => m.id || m.name);
       console.log("利用可能なモデルID:", models);
-      
+
       // 使用予定のモデルが含まれているか確認
-      if (!models.some(m => m.includes("Qwen3-30B"))) {
-        console.warn(`警告: ${MODEL_NAME} が見つかりません。利用可能なモデル:`, models);
+      if (!models.some((m) => m.includes("Qwen3-30B"))) {
+        console.warn(
+          `警告: ${MODEL_NAME} が見つかりません。利用可能なモデル:`,
+          models
+        );
       }
     }
-    
+
     return true;
   } catch (error) {
     console.error("MLX-LMサーバーに接続できません:", error.message);
@@ -292,7 +322,9 @@ async function checkMlxLmAvailability() {
       );
     }
     console.log("MLX-LMサーバーが起動していることを確認してください:");
-    console.log("  mlx_lm.server --model mlx-community/Qwen3-30B-A3B-bf16 --port 8080");
+    console.log(
+      "  mlx_lm.server --model mlx-community/Qwen3-30B-A3B-bf16 --port 8080"
+    );
     return false;
   }
 }
@@ -462,27 +494,17 @@ async function generateBulkComments(isPositive, count = 50) {
 
 必ず${count}個、番号付きで出力してください。`;
 
-    // MLX-LMへのリクエスト
-    const response = await axios.post(
-      MLX_LM_ENDPOINT,
-      {
-        model: MODEL_NAME,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.9,
-        top_p: 0.95,
-        max_tokens: 1000,
-      },
-      {
-        timeout: 60000, // 60秒のタイムアウト
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      }
-    );
+    // MLX-LMへのリクエスト（axios インスタンスを使用）
+    const response = await axiosInstance.post("/v1/chat/completions", {
+      model: MODEL_NAME,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.9,
+      top_p: 0.95,
+      max_tokens: 1000,
+    });
 
     // レスポンスからコメントを抽出
     let generatedText = response.data.choices[0].message.content.trim();
@@ -551,27 +573,16 @@ async function generateBulkComments(isPositive, count = 50) {
 
 必ず${needed}個、番号付きで出力してください。`;
 
-        const additionalResponse = await axios.post(
-          MLX_LM_ENDPOINT,
-          {
-            model: MODEL_NAME,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: additionalPrompt },
-            ],
-            temperature: 0.95, // より高い温度で多様性を確保
-            top_p: 0.98,
-            max_tokens: 500,
-          },
-          {
-            timeout: 90000, // タイムアウトを延長
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              Connection: "keep-alive", // コネクション維持
-            },
-          }
-        );
+        const additionalResponse = await axiosInstance.post("/v1/chat/completions", {
+          model: MODEL_NAME,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: additionalPrompt },
+          ],
+          temperature: 0.95, // より高い温度で多様性を確保
+          top_p: 0.98,
+          max_tokens: 500,
+        });
 
         let additionalText =
           additionalResponse.data.choices[0].message.content.trim();
