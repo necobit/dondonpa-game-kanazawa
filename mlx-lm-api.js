@@ -15,12 +15,24 @@ async function getScoreEvaluation(score) {
     // 最高スコアを3300点として、達成率を計算
     const achievementRate = Math.round((score / 3300) * 100);
 
-    // プロンプトの作成（シンプルにして確実な応答を得る）
-    const systemPrompt = "リズムゲームの評価コメントを作成してください。";
+    // プロンプトの作成（より具体的な指示）
+    let evaluationLevel = "";
+    if (score >= 3000) {
+      evaluationLevel = "素晴らしい";
+    } else if (score >= 2000) {
+      evaluationLevel = "とても良い";
+    } else if (score >= 1000) {
+      evaluationLevel = "良い";
+    } else if (score >= 500) {
+      evaluationLevel = "まあまあ";
+    } else {
+      evaluationLevel = "頑張ろう";
+    }
 
-    const userPrompt = `スコア: ${score}点（最高3300点）
+    const systemPrompt = "短い評価コメントを出力してください。";
 
-50文字以内の評価コメントを1つ作成してください。`;
+    const userPrompt = `スコア${score}点の評価：「${evaluationLevel}」
+一言コメント（例：素晴らしい成績です）：`;
 
     console.log("MLX-LMにリクエスト送信中...");
 
@@ -36,6 +48,7 @@ async function getScoreEvaluation(score) {
         temperature: 0.7,
         top_p: 0.9,
         max_tokens: 100,
+        stream: false,
       },
       {
         timeout: 30000, // 30秒のタイムアウト
@@ -50,21 +63,51 @@ async function getScoreEvaluation(score) {
     console.log("MLX-LMレスポンス全体:", JSON.stringify(response.data, null, 2));
     
     let evaluation = "";
-    if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
-      evaluation = response.data.choices[0].message.content || "";
-      evaluation = evaluation.trim();
+    
+    // レスポンスの構造を詳しくチェック
+    if (!response.data) {
+      console.error("response.dataが存在しません");
+    } else if (!response.data.choices) {
+      console.error("response.data.choicesが存在しません");
+    } else if (!response.data.choices[0]) {
+      console.error("response.data.choices[0]が存在しません");
+    } else if (!response.data.choices[0].message) {
+      console.error("response.data.choices[0].messageが存在しません");
+    } else if (!response.data.choices[0].message.content) {
+      console.error("response.data.choices[0].message.contentが存在しません");
+    } else {
+      // contentが存在する場合
+      const rawContent = response.data.choices[0].message.content;
+      console.log("生のコンテンツ:", rawContent);
+      console.log("コンテンツの型:", typeof rawContent);
+      console.log("コンテンツの長さ:", rawContent.length);
+      
+      evaluation = rawContent.toString().trim();
       
       // <think>タグを除去
+      const beforeThinkRemoval = evaluation;
       evaluation = evaluation.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+      if (beforeThinkRemoval !== evaluation) {
+        console.log("<think>タグを除去しました");
+      }
+      
       // 念のため<think>タグが閉じられていない場合も対応
+      const beforeUnclosedThinkRemoval = evaluation;
       evaluation = evaluation.replace(/<think>[\s\S]*/g, "").trim();
+      if (beforeUnclosedThinkRemoval !== evaluation) {
+        console.log("閉じられていない<think>タグを除去しました");
+      }
+      
+      // その他の特殊文字を除去
+      evaluation = evaluation.replace(/[\x00-\x1F\x7F-\x9F]/g, "").trim();
+      
+      console.log("最終的な評価コメント:", evaluation);
+      console.log("評価コメントの長さ:", evaluation.length);
       
       // 空の場合は警告
-      if (!evaluation) {
+      if (!evaluation || evaluation.length === 0) {
         console.warn("MLX-LMからの評価コメントが空です");
       }
-    } else {
-      console.error("予期しないレスポンス形式:", response.data);
     }
 
     console.log("MLX-LM評価コメント:", evaluation);
@@ -218,13 +261,26 @@ async function getRealtimeComment(score, isPositive) {
 // MLX-LMが利用可能かチェックする関数
 async function checkMlxLmAvailability() {
   try {
+    console.log("MLX-LMサーバー（http://localhost:8080）への接続を確認中...");
     const response = await axios.get("http://localhost:8080/v1/models", {
       timeout: 3000,
       headers: {
         Accept: "application/json",
       },
     });
-    console.log("MLX-LM利用可能モデル:", response.data);
+    console.log("MLX-LM利用可能モデル:", JSON.stringify(response.data, null, 2));
+    
+    // モデルが実際に利用可能か確認
+    if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      const models = response.data.data.map(m => m.id || m.name);
+      console.log("利用可能なモデルID:", models);
+      
+      // 使用予定のモデルが含まれているか確認
+      if (!models.some(m => m.includes("Qwen3-30B"))) {
+        console.warn(`警告: ${MODEL_NAME} が見つかりません。利用可能なモデル:`, models);
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error("MLX-LMサーバーに接続できません:", error.message);
@@ -235,6 +291,8 @@ async function checkMlxLmAvailability() {
         error.response.data
       );
     }
+    console.log("MLX-LMサーバーが起動していることを確認してください:");
+    console.log("  mlx_lm.server --model mlx-community/Qwen3-30B-A3B-bf16 --port 8080");
     return false;
   }
 }
