@@ -647,6 +647,8 @@ async function playGameAnimation() {
     // 最終ラウンドの場合、ミス判定を無効化
     if (isFinalRound) {
       console.log("最終ラウンドのためミス判定を無効化");
+      // ゲーム終了時のMIDI送信
+      sendMIDI("gameEnd", 48, 127);
       isGameMode = false;
     }
 
@@ -938,9 +940,6 @@ async function endGame() {
     guideText.textContent = "奥のマットを踏んでスタート！";
     guideText.style.display = "block";
     guideText.style.color = "black";
-
-    // ゲーム終了時のMIDI送信
-    sendMIDI("gameEnd", 48, 127);
 
     // ゲームモードをここで終了
     isGameMode = false;
