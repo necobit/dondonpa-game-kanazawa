@@ -57,7 +57,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "main.html"));
 });
 
-// スコア評価APIエンドポイント（Ollama版）
+// スコア評価APIエンドポイント（MLX-LM版）
 app.get("/api/score-evaluation", async (req, res) => {
   try {
     const score = parseInt(req.query.score) || 0;
@@ -185,12 +185,12 @@ const sendMIDI = (status, note, velocity) => {
 const initSerialPort = async () => {
   try {
     serialPort = new SerialPort({
-      path: "/dev/tty.usbmodem1101",
+      path: "/dev/tty.usbmodem21401",
       baudRate: 115200,
     });
 
     serialPort.on("error", (error) => {
-      // console.log("シリアルポートエラー:", error.message);
+      console.log("シリアルポートエラー:", error.message);
       serialPort = null;
     });
 
